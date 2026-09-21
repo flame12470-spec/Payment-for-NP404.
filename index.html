@@ -4,889 +4,1371 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ระบบติดตามค่ากีฬาสี NP-404</title>
-<link rel="icon" type="image/png" href="https://i.postimg.cc/ZqwL8RKR/Untitled-design.png">
+<link rel="icon" href="https://i.postimg.cc/ZqwL8RKR/Untitled-design.png">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
 <style>
-:root{--black:#080808;--gray:#666;--border:#e5e5e5;--danger:#e53935;--success:#2e7d32;--warning:#f57c00}
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:"Prompt",sans-serif;background:radial-gradient(circle at 10% 5%,#ededed 0,transparent 30%),radial-gradient(circle at 90% 95%,#e7e7e7 0,transparent 30%),#f5f5f5;color:var(--black);min-height:100vh;padding:12px}
-.container{width:100%;max-width:850px;margin:auto}
-
-.top-nav{display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid var(--border);border-radius:16px;padding:10px 16px;margin-bottom:15px;box-shadow:0 4px 15px rgba(0,0,0,.03);flex-wrap:wrap;gap:10px}
-.nav-group{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.nav-tab-btn{background:#f0f0f0;border:none;padding:8px 14px;border-radius:10px;font-family:"Prompt";font-size:13px;cursor:pointer;transition:.2s;display:inline-flex;align-items:center;gap:4px}
-.nav-tab-btn:hover{background:#e2e2e2}
-.nav-tab-btn.active{background:#111;color:#fff}
-.btn-pay-self{background:#2e7d32;color:#fff}
-.btn-pay-self:hover{background:#1b5e20}
-
-.company-header{background:#080808;color:white;border-radius:20px;padding:20px 15px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.12);margin-bottom:15px}
-.logo-wrapper{width:70px;height:70px;margin:0 auto 10px}.logo-wrapper img{width:100%;height:100%;object-fit:contain;border-radius:12px}.company-header h1{font-size:18px;font-weight:600}.company-header p{font-size:12px;color:#aaa}
-
-.summary-container{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:15px}
-.summary-card{background:#fff;border-radius:16px;padding:14px 16px;border:1px solid var(--border);box-shadow:0 4px 12px rgba(0,0,0,.03)}
-.summary-card h4{font-size:13px;margin-bottom:8px;border-bottom:1px solid #f0f0f0;padding-bottom:4px}
-.summary-row{display:flex;justify-content:space-between;font-size:12px;margin-top:4px}
-.text-success{color:var(--success);font-weight:600}.text-danger{color:var(--danger);font-weight:600}
-
-.main-card{background:rgba(255,255,255,.98);border:1px solid rgba(0,0,0,.06);border-radius:20px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.05)}
-#adminDashboardView,#requestsView{display:none}
-
-.form-group{margin-bottom:10px}.form-group label{display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:#444}
-.form-control{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;font-family:"Prompt";font-size:13px;background:#fafafa}
-.form-control:focus{outline:none;border-color:#111;background:#fff}
-.form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
-textarea.form-control{min-height:80px;resize:vertical}
-
-.btn-container{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-.action-btn{height:40px;padding:0 16px;border:none;border-radius:10px;background:#111;color:#fff;font-family:"Prompt";font-size:13px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:1;min-width:110px;transition:.2s}
-.action-btn:hover{opacity:.9}.btn-secondary{background:#666}.btn-danger{background:var(--danger)}
-.sm-btn{padding:6px 12px;border-radius:6px;border:none;font-size:11px;font-family:"Prompt";cursor:pointer}
-.btn-edit{background:#e0e0e0;color:#333}.btn-delete{background:#ffebee;color:var(--danger)}
-
-.student-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.02)}
-.student-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px dashed var(--border);gap:10px}
-.student-name{font-weight:600;font-size:14px;word-break:break-word}
-.student-class{font-size:11px;color:var(--gray);background:#f0f0f0;padding:2px 8px;border-radius:6px;white-space:nowrap}
-.status-group{display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-bottom:4px;gap:10px}
-.badge{font-size:11px;padding:3px 9px;border-radius:12px;font-weight:500;white-space:nowrap;display:inline-block}
-.badge-success{background:#e8f5e9;color:var(--success);border:1px solid rgba(46,125,50,.2)}
-.badge-danger{background:#ffebee;color:var(--danger);border:1px solid rgba(229,57,53,.2)}
-.badge-warning{background:#fff8e1;color:var(--warning);border:1px solid rgba(245,124,0,.2)}
-
-.admin-form-section{border-bottom:1px dashed var(--border);padding-bottom:15px;margin-bottom:20px}
-.admin-box-title{font-size:14px;font-weight:600;margin-bottom:12px}
-.admin-table-container{overflow-x:auto;border:1px solid var(--border);border-radius:12px;margin-top:10px}
-.admin-table{width:100%;border-collapse:collapse;font-size:12px;min-width:650px}
-.admin-table th,.admin-table td{padding:10px;border-bottom:1px solid var(--border);white-space:nowrap;text-align:left}
-.admin-table th{background:#f8f8f8;font-weight:600}
-
-.qr-wrap{display:none;text-align:center;margin-top:16px;background:#f9f9f9;padding:15px;border-radius:14px;border:1px solid var(--border)}
-.qr-box{display:inline-block;background:#fff;padding:12px;border-radius:12px;border:1px solid var(--border)}
-.prompt-number{font-size:18px;font-weight:700;letter-spacing:1px;margin-top:4px;color:#111}
-.locked{font-size:11px;color:#888;margin-top:4px}
-.slip-preview img{max-width:200px;max-height:280px;border-radius:10px;margin-top:8px;border:1px solid var(--border)}
-
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);display:none;justify-content:center;align-items:center;z-index:999;padding:15px;overflow-y:auto}
-.modal-box{background:#fff;width:100%;max-width:480px;border-radius:20px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto}
-.modal-icon{font-size:32px;margin-bottom:8px;text-align:center}.modal-box h3{font-size:16px;margin-bottom:8px;text-align:center}.modal-box p{font-size:13px;color:#666;margin-bottom:15px;text-align:center}
-
-#loading{text-align:center;color:#888;padding:20px;font-size:13px}
-.footer{text-align:center;padding:15px 10px 5px;color:#888;font-size:11px}
-.admin-login-link{background:none;border:none;color:#aaa;font-size:11px;font-family:"Prompt";cursor:pointer;text-decoration:underline;margin-top:6px}
-.empty{text-align:center;color:#999;font-size:13px;padding:20px}
-.help-box{padding:12px;border-radius:12px;background:#f8f9fa;border:1px solid var(--border);font-size:12px;line-height:1.6;margin-top:10px}
-
-.print-area{display:none}
-@media print{
-  @page{size:A4;margin:15mm}
-  body{background:#fff!important;color:#000!important;padding:0}
-  .container,.modal-overlay{display:none!important}
-  .print-area{display:block!important;color:#000;font-family:"Prompt",sans-serif}
-  .receipt{max-width:700px;margin:auto;padding:20px;border:1px solid #ddd;border-radius:10px}
-  .receipt-header{text-align:center;margin-bottom:20px;border-bottom:2px solid #333;padding-bottom:10px}
-  .receipt-table{width:100%;border-collapse:collapse;margin-bottom:20px}
-  .receipt-table td{padding:8px;border-bottom:1px solid #eee;font-size:13px}
-  .receipt-total{text-align:right;font-size:18px;font-weight:bold;margin-top:15px}
-  .signatures{display:grid;grid-template-columns:1fr 1fr;gap:40px;text-align:center;margin-top:60px}
+*{box-sizing:border-box}
+:root{
+  --primary:#2563eb;
+  --primary2:#1d4ed8;
+  --bg:#f4f7fb;
+  --card:#fff;
+  --text:#172033;
+  --muted:#64748b;
+  --green:#16a34a;
+  --red:#dc2626;
+  --orange:#f59e0b;
+  --border:#e2e8f0;
+  --shadow:0 10px 30px rgba(15,23,42,.08);
+}
+body{
+  margin:0;
+  font-family:'Prompt',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+button,input,select{font:inherit}
+button{cursor:pointer}
+.topbar{
+  position:sticky;
+  top:0;
+  z-index:50;
+  background:rgba(255,255,255,.94);
+  backdrop-filter:blur(15px);
+  border-bottom:1px solid var(--border);
+}
+.topbar-inner{
+  max-width:1200px;
+  margin:auto;
+  padding:12px 18px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:15px;
+}
+.brand{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-weight:700;
+}
+.brand img{
+  width:42px;height:42px;border-radius:12px;object-fit:cover;
+}
+.nav{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+}
+.nav button{
+  border:0;
+  background:transparent;
+  padding:9px 13px;
+  border-radius:10px;
+  color:#475569;
+}
+.nav button.active,.nav button:hover{
+  background:#dbeafe;
+  color:#1d4ed8;
+}
+.container{
+  max-width:1200px;
+  margin:auto;
+  padding:24px 18px 50px;
+}
+.hero{
+  background:linear-gradient(135deg,#eff6ff,#ffffff 55%,#dbeafe);
+  border:1px solid #dbeafe;
+  border-radius:24px;
+  padding:30px;
+  box-shadow:var(--shadow);
+  margin-bottom:22px;
+}
+.hero h1{margin:0 0 7px;font-size:clamp(25px,4vw,40px)}
+.hero p{margin:0;color:var(--muted)}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+  gap:16px;
+}
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:18px;
+  box-shadow:var(--shadow);
+}
+.student-card{
+  position:relative;
+  overflow:hidden;
+}
+.student-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:10px;
+}
+.student-name{font-weight:700;font-size:18px}
+.meta{font-size:13px;color:var(--muted);margin-top:3px}
+.status-row{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:16px;
+}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:6px 9px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:600;
+}
+.badge.success{background:#dcfce7;color:#166534}
+.badge.pending{background:#fef3c7;color:#92400e}
+.badge.danger{background:#fee2e2;color:#991b1b}
+.badge.info{background:#dbeafe;color:#1e40af}
+.actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:15px;
+}
+.btn{
+  border:0;
+  border-radius:11px;
+  padding:10px 14px;
+  transition:.2s;
+}
+.btn:hover{transform:translateY(-1px)}
+.btn.primary{background:var(--primary);color:#fff}
+.btn.primary:hover{background:var(--primary2)}
+.btn.secondary{background:#eef2ff;color:#3730a3}
+.btn.success{background:#dcfce7;color:#166534}
+.btn.danger{background:#fee2e2;color:#991b1b}
+.btn.gray{background:#f1f5f9;color:#334155}
+.btn.small{padding:7px 10px;font-size:13px}
+.section-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin:24px 0 14px;
+}
+.section-title h2{margin:0;font-size:23px}
+.search{
+  width:100%;
+  border:1px solid var(--border);
+  background:#fff;
+  border-radius:12px;
+  padding:12px 14px;
+  outline:none;
+}
+.search:focus,input:focus,select:focus,textarea:focus{
+  border-color:#93c5fd;
+  box-shadow:0 0 0 3px rgba(59,130,246,.1);
+}
+.form-group{margin-bottom:15px}
+.form-group label{
+  display:block;
+  margin-bottom:7px;
+  font-size:14px;
+  font-weight:600;
+}
+input,select,textarea{
+  width:100%;
+  border:1px solid var(--border);
+  border-radius:11px;
+  padding:11px 13px;
+  background:#fff;
+  outline:none;
+}
+textarea{min-height:100px;resize:vertical}
+.stats{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+  gap:14px;
+  margin-bottom:20px;
+}
+.stat{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:17px;
+}
+.stat .label{color:var(--muted);font-size:13px}
+.stat .value{font-size:27px;font-weight:700;margin-top:4px}
+.table-wrap{
+  overflow:auto;
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:16px;
+}
+table{width:100%;border-collapse:collapse;min-width:780px}
+th,td{
+  padding:12px 13px;
+  border-bottom:1px solid #eef2f7;
+  text-align:left;
+  font-size:14px;
+}
+th{background:#f8fafc;white-space:nowrap}
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.58);
+  z-index:100;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+}
+.modal.show{display:flex}
+.modal-box{
+  width:min(700px,100%);
+  max-height:92vh;
+  overflow:auto;
+  background:#fff;
+  border-radius:20px;
+  box-shadow:0 25px 70px rgba(0,0,0,.25);
+}
+.modal-head{
+  padding:17px 20px;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+}
+.modal-head h3{margin:0}
+.modal-body{padding:20px}
+.close{
+  width:36px;height:36px;border:0;border-radius:10px;
+  background:#f1f5f9;font-size:20px;color:#475569;
+}
+.modal-foot{
+  padding:14px 20px;
+  border-top:1px solid var(--border);
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+}
+.hidden{display:none!important}
+.notice{
+  padding:12px 14px;
+  border-radius:12px;
+  background:#eff6ff;
+  color:#1e40af;
+  font-size:13px;
+  margin-bottom:14px;
+}
+.error{
+  padding:12px 14px;
+  border-radius:12px;
+  background:#fee2e2;
+  color:#991b1b;
+  font-size:13px;
+}
+.success-box{
+  padding:12px 14px;
+  border-radius:12px;
+  background:#dcfce7;
+  color:#166534;
+  font-size:13px;
+}
+.student-results{
+  border:1px solid var(--border);
+  border-radius:12px;
+  margin-top:7px;
+  overflow:hidden;
+  background:#fff;
+}
+.student-result{
+  width:100%;
+  border:0;
+  border-bottom:1px solid #eef2f7;
+  background:#fff;
+  text-align:left;
+  padding:12px 14px;
+}
+.student-result:last-child{border-bottom:0}
+.student-result:hover{background:#eff6ff}
+.selected-student{
+  padding:14px;
+  background:#eff6ff;
+  border:1px solid #bfdbfe;
+  border-radius:13px;
+  margin:12px 0 15px;
+}
+.selected-student strong{display:block}
+.slip-preview{
+  width:100%;
+  max-height:480px;
+  object-fit:contain;
+  border-radius:12px;
+  background:#f8fafc;
+  border:1px solid var(--border);
+}
+.qr-box{
+  display:flex;
+  justify-content:center;
+  padding:10px;
+}
+.empty{
+  text-align:center;
+  padding:35px 15px;
+  color:var(--muted);
+}
+.loading{
+  text-align:center;
+  padding:30px;
+  color:var(--muted);
+}
+footer{
+  text-align:center;
+  color:#94a3b8;
+  font-size:12px;
+  margin-top:35px;
+}
+@media(max-width:700px){
+  .topbar-inner{align-items:flex-start;flex-direction:column}
+  .nav{width:100%;overflow:auto;flex-wrap:nowrap}
+  .nav button{white-space:nowrap}
+  .hero{padding:22px}
 }
 </style>
 </head>
+
 <body>
-
-<div class="container">
-  <div class="top-nav">
-    <div class="nav-group">
-      <button class="nav-tab-btn active" id="tabHomeBtn" onclick="switchTab('user')">🏠 หน้าหลัก</button>
-      <button class="nav-tab-btn btn-pay-self" onclick="openSelfPaymentModal()">💸 ชำระเงินด้วยตนเอง</button>
-      <button class="nav-tab-btn" id="tabRequestsBtn" style="display:none" onclick="switchTab('requests')">📥 รายการแจ้งชำระ (<span id="pendingCount">0</span>)</button>
-      <button class="nav-tab-btn" id="tabAdminBtn" style="display:none" onclick="switchTab('admin')">⚙️ จัดการระบบ</button>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <img src="https://i.postimg.cc/ZqwL8RKR/Untitled-design.png" alt="logo">
+      <span>NP-404 • ค่ากีฬาสี</span>
     </div>
-    <div class="nav-group">
-      <button class="sm-btn btn-edit" id="adminLoginBtn" onclick="openAdminModal()">🔒 แอดมิน</button>
-      <button class="sm-btn btn-delete" id="adminLogoutBtn" style="display:none" onclick="logoutAdmin()">ออกจากระบบ</button>
-    </div>
+    <nav class="nav">
+      <button class="active" onclick="showPage('home',this)">หน้าหลัก</button>
+      <button onclick="showPage('selfPayment',this)">แจ้งชำระเงิน</button>
+      <button onclick="showPage('requests',this)">รายการแจ้งชำระ</button>
+      <button onclick="showPage('admin',this)">จัดการข้อมูล</button>
+    </nav>
   </div>
+</header>
 
-  <header class="company-header">
-    <div class="logo-wrapper"><img src="https://i.postimg.cc/ZqwL8RKR/Untitled-design.png" alt="NP-404"></div>
-    <h1>ระบบติดตามสถานะค่ากีฬาสี</h1>
-    <p>NP-404</p>
-  </header>
+<main class="container">
 
-  <div class="summary-container">
-    <div class="summary-card">
-      <h4>👕 สรุปค่าเสื้อ</h4>
-      <div class="summary-row"><span>จ่ายแล้ว:</span><span class="text-success"><span id="shirtPaidCount">0</span> คน (<span id="shirtPaidAmount">0</span> บ.)</span></div>
-      <div class="summary-row"><span>ยังไม่จ่าย:</span><span class="text-danger"><span id="shirtUnpaidCount">0</span> คน (<span id="shirtUnpaidAmount">0</span> บ.)</span></div>
-    </div>
-    <div class="summary-card">
-      <h4>🏆 สรุปค่าบำรุง</h4>
-      <div class="summary-row"><span>จ่ายแล้ว:</span><span class="text-success"><span id="feePaidCount">0</span> คน (<span id="feePaidAmount">0</span> บ.)</span></div>
-      <div class="summary-row"><span>ยังไม่จ่าย:</span><span class="text-danger"><span id="feeUnpaidCount">0</span> คน (<span id="feeUnpaidAmount">0</span> บ.)</span></div>
-    </div>
-  </div>
-
-  <main class="main-card">
-    <!-- USER VIEW -->
-    <div id="userMainView">
-      <div style="margin-bottom:12px">
-        <input type="text" class="form-control" id="searchInput" placeholder="🔍 ค้นหาชื่อ เลขที่ หรือชั้นเรียน..." oninput="filterData()">
-      </div>
-      <div id="loading">กำลังโหลดข้อมูล...</div>
-      <div id="studentList"></div>
+  <section id="page-home">
+    <div class="hero">
+      <h1>ระบบติดตามค่ากีฬาสี NP-404</h1>
+      <p>ตรวจสอบสถานะค่าเสื้อ ค่าบำรุง และสลิปการชำระเงินของนักเรียน</p>
     </div>
 
-    <!-- ADMIN DASHBOARD VIEW -->
-    <div id="adminDashboardView">
-      <div class="admin-form-section">
-        <div class="admin-box-title" id="formTitle">➕ เพิ่มข้อมูลนักเรียน</div>
-        <input type="hidden" id="rowIndex">
-        <div class="form-row">
-          <div class="form-group"><label>คำนำหน้า</label><input type="text" class="form-control" id="prefix" placeholder="นาย / นางสาว"></div>
-          <div class="form-group"><label>ชื่อ-นามสกุล</label><input type="text" class="form-control" id="name" placeholder="สมชาย ใจดี"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>เลขประจำตัว / เลขที่</label><input type="text" class="form-control" id="studentId" placeholder="001"></div>
-          <div class="form-group"><label>ชั้นเรียน / ห้อง</label><input type="text" class="form-control" id="className" placeholder="ม.4/4"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>สถานะค่าเสื้อ</label>
-            <select class="form-control" id="shirtStatus"><option value="ค้างชำระ">ค้างชำระ</option><option value="ชำระแล้ว">ชำระแล้ว</option></select>
-          </div>
-          <div class="form-group"><label>ค่าเสื้อ (บาท)</label><input type="number" class="form-control" id="shirtAmount" value="250"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>สถานะค่าบำรุง</label>
-            <select class="form-control" id="feeStatus"><option value="ค้างชำระ">ค้างชำระ</option><option value="ชำระแล้ว">ชำระแล้ว</option></select>
-          </div>
-          <div class="form-group"><label>ค่าบำรุง (บาท)</label><input type="number" class="form-control" id="feeAmount" value="100"></div>
-        </div>
-        <div class="form-group"><label>หมายเหตุ</label><input type="text" class="form-control" id="note" placeholder="-"></div>
-        <div class="btn-container">
-          <button class="action-btn" id="btnAdd" onclick="saveStudent()">+ บันทึกข้อมูล</button>
-          <button class="action-btn" id="btnUpdate" style="display:none" onclick="submitEdit()">บันทึกแก้ไข</button>
-          <button class="action-btn btn-secondary" id="btnCancel" style="display:none" onclick="resetForm()">ยกเลิก</button>
-        </div>
+    <div class="section-title">
+      <h2>รายชื่อนักเรียน</h2>
+      <input id="homeSearch" class="search" style="max-width:330px" placeholder="ค้นหาชื่อ / เลขที่ / ห้อง" oninput="renderData()">
+    </div>
+
+    <div id="studentGrid" class="grid">
+      <div class="loading">กำลังโหลดข้อมูล...</div>
+    </div>
+  </section>
+
+  <section id="page-selfPayment" class="hidden">
+    <div class="hero">
+      <h1>แจ้งชำระเงิน</h1>
+      <p>ค้นหาชื่อของตัวเองจากรายชื่อ แล้วระบบจะนำเลขที่และห้องมาให้อัตโนมัติ</p>
+    </div>
+
+    <div class="card">
+      <div class="notice">
+        กรุณาเลือกชื่อของตัวเองให้ถูกต้อง เพราะระบบจะเชื่อมรายการชำระกับรหัสนักเรียนโดยตรง
       </div>
 
-      <div class="admin-box-title">📋 ตารางจัดการข้อมูลทั้งหมด</div>
-      <div class="admin-table-container">
-        <table class="admin-table">
-          <thead><tr><th>นักเรียน</th><th>ห้อง</th><th>ค่าเสื้อ</th><th>ค่าบำรุง</th><th>จัดการ</th></tr></thead>
-          <tbody id="adminTableBody"></tbody>
-        </table>
+      <div class="form-group">
+        <label>ค้นหาชื่อนักเรียน</label>
+        <input id="studentSearch" placeholder="พิมพ์ชื่อ นามสกุล หรือเลขที่" oninput="searchPaymentStudent()">
+        <div id="studentSearchResult"></div>
       </div>
 
-      <!-- BULK IMPORT SECTION -->
-      <div style="margin-top:25px" class="admin-form-section">
-        <div class="admin-box-title">📋 นำเข้าข้อมูลหลายรายการ (Bulk Import)</div>
-        <div class="help-box">
-          <b>รูปแบบที่แนะนำ:</b> เลขที่ | คำนำหน้า | ชื่อ-นามสกุล | ห้อง | สถานะเสื้อ | ค่าเสื้อ | สถานะบำรุง | ค่าบำรุง | หมายเหตุ<br>
-          ตัวอย่าง: <code>1 | นาย | สมชาย ใจดี | ม.4/4 | ชำระแล้ว | 250 | ค้างชำระ | 100 | -</code><br>
-          *รองรับตัวคั่น <b>Tab, | หรือ ,</b>
-        </div>
-        <textarea id="bulkData" class="form-control" style="margin-top:10px;min-height:120px" placeholder="1	นาย	สมชาย ใจดี	ม.4/4	ชำระแล้ว	250	ค้างชำระ	100	-"></textarea>
-        <div class="btn-container">
-          <button class="action-btn btn-secondary" onclick="previewBulkData()">👁️ ตรวจข้อมูล</button>
-          <button class="action-btn" onclick="saveBulkData()">💾 บันทึกทั้งหมด</button>
-        </div>
-        <div id="bulkPreview" style="margin-top:10px"></div>
+      <div id="selectedStudentBox" class="selected-student hidden"></div>
+
+      <div class="form-group">
+        <label>รายการที่ต้องการชำระ</label>
+        <select id="payType">
+          <option value="">-- กรุณาเลือกนักเรียนก่อน --</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>จำนวนเงิน</label>
+        <input id="payAmount" readonly placeholder="ระบบจะแสดงจำนวนเงินอัตโนมัติ">
+      </div>
+
+      <div class="form-group">
+        <label>สลิปการโอนเงิน</label>
+        <input id="paySlip" type="file" accept="image/*">
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" onclick="submitSelfPayment()">ส่งหลักฐานการชำระเงิน</button>
+        <button class="btn gray" onclick="resetPaymentForm()">ล้างข้อมูล</button>
+      </div>
+
+      <div id="paymentMessage" style="margin-top:14px"></div>
+    </div>
+  </section>
+
+  <section id="page-requests" class="hidden">
+    <div class="hero">
+      <h1>รายการแจ้งชำระเงิน</h1>
+      <p>สำหรับผู้ดูแลระบบ ตรวจสอบสลิปและอนุมัติรายการ</p>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="label">รอตรวจสอบ</div><div class="value" id="pendingCount">0</div></div>
+      <div class="stat"><div class="label">อนุมัติแล้ว</div><div class="value" id="approvedCount">0</div></div>
+      <div class="stat"><div class="label">ไม่ผ่าน</div><div class="value" id="rejectedCount">0</div></div>
+    </div>
+
+    <div class="card">
+      <div class="form-group">
+        <label>ค้นหารายการ</label>
+        <input id="requestSearch" class="search" placeholder="ชื่อ / เลขที่ / รายการ" oninput="renderRequests()">
+      </div>
+      <div id="requestTable"></div>
+    </div>
+  </section>
+
+  <section id="page-admin" class="hidden">
+    <div class="hero">
+      <h1>จัดการข้อมูลนักเรียน</h1>
+      <p>เพิ่ม แก้ไข ลบ และนำเข้ารายชื่อนักเรียน</p>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="label">นักเรียนทั้งหมด</div><div class="value" id="totalStudents">0</div></div>
+      <div class="stat"><div class="label">ชำระค่าเสื้อแล้ว</div><div class="value" id="shirtPaid">0</div></div>
+      <div class="stat"><div class="label">ชำระค่าบำรุงแล้ว</div><div class="value" id="feePaid">0</div></div>
+    </div>
+
+    <div class="card">
+      <div class="actions" style="margin-top:0">
+        <button class="btn primary" onclick="openStudentModal()">+ เพิ่มนักเรียน</button>
+        <button class="btn secondary" onclick="openImportModal()">นำเข้าหลายรายการ</button>
+        <button class="btn gray" onclick="loadData()">รีเฟรชข้อมูล</button>
       </div>
     </div>
 
-    <!-- REQUESTS APPROVAL VIEW -->
-    <div id="requestsView">
-      <div class="admin-box-title">📥 รายการชำระเงินด้วยตนเอง (รอการตรวจสอบ)</div>
-      <div class="admin-table-container">
-        <table class="admin-table">
-          <thead><tr><th>เลขที่/ผู้ชำระ</th><th>รายการ</th><th>ยอดเงิน</th><th>สถานะ</th><th>สลิป</th><th>จัดการ</th></tr></thead>
-          <tbody id="requestTableBody"><tr><td colspan="6" class="empty">กำลังโหลด...</td></tr></tbody>
-        </table>
+    <div class="card" style="margin-top:16px">
+      <div class="form-group">
+        <label>ค้นหานักเรียน</label>
+        <input id="adminSearch" class="search" placeholder="ชื่อ / เลขที่ / ห้อง" oninput="renderAdminStudents()">
+      </div>
+      <div id="adminStudentTable"></div>
+    </div>
+  </section>
+
+  <footer>ระบบติดตามค่ากีฬาสี NP-404</footer>
+</main>
+
+<!-- Self payment modal is intentionally not used; payment form is on page -->
+
+<!-- Student modal -->
+<div id="studentModal" class="modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="studentModalTitle">เพิ่มนักเรียน</h3>
+      <button class="close" onclick="closeModal('studentModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="studentEditId">
+      <div class="form-group">
+        <label>เลขที่</label>
+        <input id="studentNumber" placeholder="เช่น 11">
+      </div>
+      <div class="form-group">
+        <label>ชื่อ-นามสกุล</label>
+        <input id="studentName" placeholder="ชื่อ-นามสกุล">
+      </div>
+      <div class="form-group">
+        <label>ห้อง</label>
+        <input id="studentClass" placeholder="เช่น ม.4/4">
+      </div>
+      <div class="form-group">
+        <label>สถานะค่าเสื้อ</label>
+        <select id="studentShirtStatus">
+          <option value="ยังไม่ชำระ">ยังไม่ชำระ</option>
+          <option value="ชำระแล้ว">ชำระแล้ว</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>สถานะค่าบำรุง</label>
+        <select id="studentFeeStatus">
+          <option value="ยังไม่ชำระ">ยังไม่ชำระ</option>
+          <option value="ชำระแล้ว">ชำระแล้ว</option>
+        </select>
       </div>
     </div>
-  </main>
-
-  <footer class="footer">
-    <div>© 2026 All Rights Reserved. by FLAME SHOP</div>
-    <button class="admin-login-link" onclick="testConnection()">🔌 ทดสอบการเชื่อมต่อฐานข้อมูล</button>
-  </footer>
-</div>
-
-<!-- SELF PAYMENT MODAL -->
-<div class="modal-overlay" id="selfPaymentModal">
-  <div class="modal-box">
-    <h3>💸 ชำระเงินด้วยตนเอง</h3>
-    <p>เลือกรายการ → สแกน QR → อัปโหลดสลิป</p>
-    <div class="form-group"><label>ชื่อ-นามสกุล ผู้ชำระเงิน</label><input id="payName" class="form-control" placeholder="กรอกชื่อ-นามสกุล"></div>
-    <div class="form-row">
-      <div class="form-group"><label>เลขที่</label><input id="payNumber" class="form-control" placeholder="เช่น 11"></div>
-      <div class="form-group"><label>ชั้น / ห้อง</label><input id="payClass" class="form-control" placeholder="เช่น ม.4/4"></div>
-    </div>
-    <div class="form-group">
-      <label>รายการที่ต้องการชำระ</label>
-      <select id="payType" class="form-control" onchange="changePaymentType()">
-        <option value="">-- เลือกรายการ --</option>
-        <option value="ค่าเสื้อ" data-amount="250">ค่าเสื้อ — 250 บาท</option>
-        <option value="ค่าบำรุง" data-amount="100">ค่าบำรุง — 100 บาท</option>
-        <option value="ค่าเสื้อ+ค่าบำรุง" data-amount="350">ค่าเสื้อ + ค่าบำรุง — 350 บาท</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>จำนวนเงิน (บาท)</label>
-      <input id="payAmount" class="form-control" type="number" readonly placeholder="เลือกรายการชำระเงินก่อน">
-      <div class="locked">🔒 ล็อกยอดเงินตามรายการที่เลือก</div>
-    </div>
-
-    <div class="qr-wrap" id="qrSection">
-      <div style="font-size:13px;font-weight:500;margin-bottom:6px">📱 สแกน QR พร้อมเพย์</div>
-      <div class="qr-box"><div id="promptpayQR"></div></div>
-      <div style="margin-top:6px;font-size:12px;color:#666">พร้อมเพย์</div>
-      <div class="prompt-number">0614417784</div>
-      <div style="margin-top:4px;font-size:13px">ยอดชำระ <b>฿<span id="qrAmount">0.00</span></b></div>
-    </div>
-
-    <div style="margin-top:12px">
-      <label style="display:block;font-size:12px;margin-bottom:4px">📎 อัปโหลดสลิปการชำระเงิน</label>
-      <input id="paymentSlip" type="file" accept="image/*" class="form-control">
-      <div id="slipPreview" class="slip-preview"></div>
-    </div>
-
-    <div class="btn-container" style="margin-top:15px">
-      <button class="action-btn btn-secondary" onclick="closeModal('selfPaymentModal')">ยกเลิก</button>
-      <button id="submitPaymentBtn" class="action-btn" onclick="submitSelfPayment()">ส่งหลักฐาน</button>
+    <div class="modal-foot">
+      <button class="btn gray" onclick="closeModal('studentModal')">ยกเลิก</button>
+      <button class="btn primary" onclick="saveStudent()">บันทึก</button>
     </div>
   </div>
 </div>
 
-<!-- REQUEST DETAIL MODAL -->
-<div class="modal-overlay" id="requestDetailModal">
+<!-- Import modal -->
+<div id="importModal" class="modal">
   <div class="modal-box">
-    <h3>🔍 ตรวจสอบสลิปชำระเงิน</h3>
-    <div id="requestDetail" style="text-align:left;font-size:13px;background:#f8f9fa;padding:12px;border-radius:10px;margin-bottom:10px"></div>
-    <div id="requestSlip" style="text-align:center;margin-bottom:15px"></div>
-    <div class="btn-container">
-      <button class="action-btn btn-danger" onclick="rejectRequest()">❌ ปฏิเสธ</button>
-      <button class="action-btn" style="background:var(--success)" onclick="approveRequest()">✅ อนุมัติ</button>
-      <button class="action-btn btn-secondary" onclick="closeModal('requestDetailModal')">ปิด</button>
+    <div class="modal-head">
+      <h3>นำเข้ารายชื่อนักเรียน</h3>
+      <button class="close" onclick="closeModal('importModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="notice">
+        วางข้อมูลแต่ละบรรทัดในรูปแบบ: <b>เลขที่ [Tab/เว้นวรรค] ชื่อ [Tab/เว้นวรรค] ห้อง</b><br>
+        ตัวอย่าง: <b>11&nbsp;&nbsp;&nbsp;นายวัชรพงศ์ ปะวะโน&nbsp;&nbsp;&nbsp;ม.4/4</b>
+      </div>
+      <textarea id="importText" placeholder="11&#9;นายวัชรพงศ์ ปะวะโน&#9;ม.4/4"></textarea>
+      <div id="importMessage"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn gray" onclick="closeModal('importModal')">ยกเลิก</button>
+      <button class="btn primary" onclick="importStudents()">นำเข้า</button>
     </div>
   </div>
 </div>
 
-<!-- ADMIN LOGIN MODAL -->
-<div class="modal-overlay" id="adminPasswordModal">
+<!-- Request review modal -->
+<div id="requestModal" class="modal">
   <div class="modal-box">
-    <h3>🔒 เข้าสู่โหมดแอดมิน</h3>
-    <p>กรุณากรอกรหัสผ่านเพื่อเข้าใช้งาน</p>
-    <input type="password" id="adminPassInput" class="form-control" style="margin-bottom:12px;text-align:center" placeholder="รหัสผ่าน" onkeydown="if(event.key==='Enter') submitAdminPassword()">
-    <div class="btn-container">
-      <button class="action-btn btn-secondary" onclick="closeModal('adminPasswordModal')">ยกเลิก</button>
-      <button class="action-btn" onclick="submitAdminPassword()">ยืนยัน</button>
+    <div class="modal-head">
+      <h3>ตรวจสอบการชำระเงิน</h3>
+      <button class="close" onclick="closeModal('requestModal')">×</button>
     </div>
-  </div>
-</div>
-
-<!-- ALERT & CONFIRM MODALS -->
-<div class="modal-overlay" id="alertModal">
-  <div class="modal-box">
-    <div class="modal-icon" id="alertIcon">⚠️</div>
-    <h3 id="alertTitle">แจ้งเตือน</h3>
-    <p id="alertMessage">เกิดข้อผิดพลาด</p>
-    <button class="action-btn" onclick="closeModal('alertModal')">ตกลง</button>
-  </div>
-</div>
-
-<div class="modal-overlay" id="confirmModal">
-  <div class="modal-box">
-    <h3 id="confirmTitle">ยืนยันการทำรายการ</h3>
-    <p id="confirmMessage">คุณแน่ใจหรือไม่?</p>
-    <div class="btn-container">
-      <button class="action-btn btn-secondary" onclick="closeModal('confirmModal')">ยกเลิก</button>
-      <button class="action-btn btn-danger" id="confirmOkBtn">ตกลง</button>
-    </div>
-  </div>
-</div>
-
-<!-- PRINT RECEIPT -->
-<div class="print-area">
-  <div class="receipt">
-    <div class="receipt-header">
-      <h2>ใบรับเงิน / หลักฐานการชำระเงิน</h2>
-      <p>ระบบติดตามค่ากีฬาสี NP-404</p>
-    </div>
-    <table class="receipt-table">
-      <tr><td><b>เลขที่เอกสาร:</b></td><td id="printReceipt"></td></tr>
-      <tr><td><b>ชื่อนักเรียน:</b></td><td id="printName"></td></tr>
-      <tr><td><b>ชั้น / ห้อง:</b></td><td id="printClass"></td></tr>
-      <tr><td><b>รายการ:</b></td><td id="printType"></td></tr>
-      <tr><td><b>จำนวนเงิน:</b></td><td id="printAmount"></td></tr>
-      <tr><td><b>วันที่ชำระเงิน:</b></td><td id="printDate"></td></tr>
-    </table>
-    <div class="receipt-total">รวมทั้งสิ้น <span id="printTotal">0.00</span> บาท</div>
-    <div class="signatures">
-      <div>ผู้รับเงิน<br><br><br>________________________</div>
-      <div>ผู้ชำระเงิน<br><br><br>________________________</div>
+    <div class="modal-body" id="requestModalBody"></div>
+    <div class="modal-foot">
+      <button class="btn danger" onclick="rejectCurrentRequest()">ไม่ผ่าน</button>
+      <button class="btn success" onclick="approveCurrentRequest()">อนุมัติการชำระ</button>
     </div>
   </div>
 </div>
 
 <script>
-const SUPABASE_URL='https://aefzegkgfwszuiznihsk.supabase.co';
-const SUPABASE_KEY='sb_publishable_Z1zogpI9qqUlegxG816ncQ_eHeaiFvr';
-const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const SUPABASE_URL = 'https://aefzegkgfwszuiznihsk.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Z1zogpI9qqUlegxG816ncQ_eHeaiFvr';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const ADMIN_PASSWORD='123456';
-const PROMPTPAY_NUMBER='0614417784';
-let isAdmin=false;
-let allStudents=[];
-let paymentRequests=[];
-let selectedRequestId=null;
-let confirmCallback=null;
+const ADMIN_PASSWORD = '123456';
+const PROMPTPAY = '0614417784';
+const SHIRT_PRICE = 250;
+const FEE_PRICE = 100;
 
-window.addEventListener('load',loadData);
+let students = [];
+let allStudents = [];
+let requests = [];
+let selectedPaymentStudent = null;
+let currentRequest = null;
+let isAdmin = false;
 
-function openModal(id){document.getElementById(id).style.display='flex'}
-function closeModal(id){document.getElementById(id).style.display='none'}
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadData();
+});
 
-function showAlert(title,message,icon='⚠️'){
-  document.getElementById('alertIcon').innerText=icon;
-  document.getElementById('alertTitle').innerText=title;
-  document.getElementById('alertMessage').innerText=message;
-  openModal('alertModal');
+function showPage(page, btn){
+  document.querySelectorAll('[id^="page-"]').forEach(el => el.classList.add('hidden'));
+  document.getElementById('page-' + page).classList.remove('hidden');
+  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+
+  if(page === 'requests'){
+    if(!requireAdmin()) return;
+    renderRequests();
+  }
+  if(page === 'admin'){
+    if(!requireAdmin()) return;
+    renderAdminStudents();
+  }
+  if(page === 'selfPayment'){
+    resetPaymentForm();
+  }
 }
 
-function showConfirm(title,message,callback){
-  document.getElementById('confirmTitle').innerText=title;
-  document.getElementById('confirmMessage').innerText=message;
-  confirmCallback=callback;
-  document.getElementById('confirmOkBtn').onclick=()=>{closeModal('confirmModal');if(confirmCallback)confirmCallback()};
-  openModal('confirmModal');
-}
-
-function openAdminModal(){
-  if(isAdmin){switchTab('admin');return}
-  document.getElementById('adminPassInput').value='';
-  openModal('adminPasswordModal');
-}
-
-function submitAdminPassword(){
-  const password=document.getElementById('adminPassInput').value;
-  if(!password){showAlert('ข้อผิดพลาด','กรุณากรอกรหัสผ่าน','❌');return}
-  if(password!==ADMIN_PASSWORD){showAlert('รหัสผ่านไม่ถูกต้อง','กรุณาตรวจสอบรหัสผ่านอีกครั้ง','❌');return}
-  closeModal('adminPasswordModal');
-  isAdmin=true;
-  applyAdminModeUI();
-  switchTab('admin');
-  loadPaymentRequests();
-  showAlert('สำเร็จ','เข้าสู่ระบบแอดมินเรียบร้อยแล้ว','✅');
-}
-
-function logoutAdmin(){
-  isAdmin=false;
-  applyAdminModeUI();
-  switchTab('user');
-  showAlert('ออกจากระบบ','ออกจากโหมดแอดมินแล้ว','ℹ️');
-}
-
-function applyAdminModeUI(){
-  document.getElementById('tabAdminBtn').style.display=isAdmin?'inline-flex':'none';
-  document.getElementById('tabRequestsBtn').style.display=isAdmin?'inline-flex':'none';
-  document.getElementById('adminLoginBtn').style.display=isAdmin?'none':'inline-block';
-  document.getElementById('adminLogoutBtn').style.display=isAdmin?'inline-block':'none';
-}
-
-function switchTab(tab){
-  const views={
-    user:document.getElementById('userMainView'),
-    admin:document.getElementById('adminDashboardView'),
-    requests:document.getElementById('requestsView')
-  };
-  const btns={
-    user:document.getElementById('tabHomeBtn'),
-    admin:document.getElementById('tabAdminBtn'),
-    requests:document.getElementById('tabRequestsBtn')
-  };
-
-  Object.keys(views).forEach(k=>{
-    if(views[k]) views[k].style.display=(k===tab)?'block':'none';
-    if(btns[k]) btns[k].classList.toggle('active',k===tab);
-  });
-
-  if(tab==='user') renderData(allStudents);
-  if(tab==='admin'&&isAdmin) renderAdminTable(allStudents);
-  if(tab==='requests'&&isAdmin) renderRequestTable();
+function requireAdmin(){
+  if(isAdmin) return true;
+  const pass = prompt('กรุณาใส่รหัสผู้ดูแลระบบ');
+  if(pass !== ADMIN_PASSWORD){
+    alert('รหัสผ่านไม่ถูกต้อง');
+    showPage('home', document.querySelector('.nav button'));
+    return false;
+  }
+  isAdmin = true;
+  return true;
 }
 
 async function loadData(){
-  showLoading(true);
+  const grid = document.getElementById('studentGrid');
+  if(grid) grid.innerHTML = '<div class="loading">กำลังโหลดข้อมูล...</div>';
+
   try{
-    const{data,error}=await supabaseClient.from('sports_students').select('*').order('student_id',{ascending:true});
-    showLoading(false);
-    if(error) throw error;
-    allStudents=data||[];
-    renderData(allStudents);
-    renderAdminTable(allStudents);
-    updateStats(allStudents);
-    if(isAdmin) loadPaymentRequests();
+    const { data: studentData, error: studentError } = await supabaseClient
+      .from('sports_students')
+      .select('*')
+      .order('student_number', {ascending:true});
+
+    if(studentError) throw studentError;
+
+    const { data: requestData, error: requestError } = await supabaseClient
+      .from('payment_requests')
+      .select('*')
+      .order('created_at', {ascending:false});
+
+    if(requestError) throw requestError;
+
+    allStudents = studentData || [];
+    requests = requestData || [];
+
+    // Use student_id as the primary link. Names/numbers are only display fields.
+    students = allStudents.map(student => {
+      const approved = requests
+        .filter(r =>
+          String(r.student_id || '') === String(student.id) &&
+          r.status === 'อนุมัติ'
+        )
+        .sort((a,b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+
+      const latestSlip = approved.find(r => r.slip_url);
+
+      return {
+        ...student,
+        payment_slip_status: approved.length ? 'ผ่านการตรวจสอบ' : null,
+        latest_slip_url: latestSlip ? latestSlip.slip_url : null,
+        approved_requests: approved
+      };
+    });
+
+    renderData();
+    updateStats();
+    renderAdminStudents();
+    renderRequests();
   }catch(err){
-    showLoading(false);
     console.error(err);
-    showAlert('เกิดข้อผิดพลาดในการโหลดข้อมูล',err.message||String(err),'❌');
+    if(grid){
+      grid.innerHTML = '<div class="card error">โหลดข้อมูลไม่สำเร็จ: ' + escapeHtml(err.message || 'เกิดข้อผิดพลาด') + '</div>';
+    }
   }
 }
 
-function renderData(data){
-  const list=document.getElementById('studentList');
-  list.innerHTML='';
-  if(!data.length){list.innerHTML='<div class="empty">ยังไม่มีข้อมูลในระบบ</div>';return}
-  data.forEach(item=>{
-    const card=document.createElement('div');
-    card.className='student-card';
-    const sc=item.shirt_status==='ชำระแล้ว'?'badge-success':'badge-danger';
-    const fc=item.fee_status==='ชำระแล้ว'?'badge-success':'badge-danger';
-    card.innerHTML=`
-      <div class="student-header">
-        <span class="student-name">${escapeHtml(item.prefix)} ${escapeHtml(item.name)}</span>
-        <span class="student-class">${escapeHtml(item.class_name||'-')}</span>
-      </div>
-      <div class="status-group">
-        <span>👕 ค่าเสื้อ (${formatMoney(item.shirt_amount)} บ.)</span>
-        <span class="badge ${sc}">${escapeHtml(item.shirt_status)}</span>
-      </div>
-      <div class="status-group">
-        <span>🏆 ค่าบำรุง (${formatMoney(item.fee_amount)} บ.)</span>
-        <span class="badge ${fc}">${escapeHtml(item.fee_status)}</span>
-      </div>
-      ${item.note?`<div style="font-size:11px;color:#888;margin-top:5px">หมายเหตุ: ${escapeHtml(item.note)}</div>`:''}
-    `;
-    list.appendChild(card);
-  });
-}
+function renderData(){
+  const grid = document.getElementById('studentGrid');
+  if(!grid) return;
 
-function renderAdminTable(data){
-  const tbody=document.getElementById('adminTableBody');
-  tbody.innerHTML='';
-  if(!data.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:#999">ไม่มีข้อมูล</td></tr>';return}
-  data.forEach(item=>{
-    const tr=document.createElement('tr');
-    const sc=item.shirt_status==='ชำระแล้ว'?'badge-success':'badge-danger';
-    const fc=item.fee_status==='ชำระแล้ว'?'badge-success':'badge-danger';
-    tr.innerHTML=`
-      <td>${escapeHtml(item.prefix)} ${escapeHtml(item.name)}</td>
-      <td>${escapeHtml(item.class_name||'-')}</td>
-      <td><span class="badge ${sc}">${escapeHtml(item.shirt_status)}</span></td>
-      <td><span class="badge ${fc}">${escapeHtml(item.fee_status)}</span></td>
-      <td>
-        <div style="display:flex;gap:4px">
-          <button class="sm-btn btn-edit" onclick="startEdit('${item.id}')">แก้ไข</button>
-          <button class="sm-btn btn-delete" onclick="deleteStudent('${item.id}')">ลบ</button>
+  const q = (document.getElementById('homeSearch')?.value || '').trim().toLowerCase();
+
+  const filtered = students.filter(s => {
+    const text = `${s.student_name || ''} ${s.student_number || ''} ${s.class_name || ''}`.toLowerCase();
+    return !q || text.includes(q);
+  });
+
+  if(!filtered.length){
+    grid.innerHTML = '<div class="card empty">ไม่พบข้อมูลนักเรียน</div>';
+    return;
+  }
+
+  grid.innerHTML = filtered.map(s => {
+    const shirtPaid = normalizePaid(s.shirt_status);
+    const feePaid = normalizePaid(s.fee_status);
+
+    const slip = s.latest_slip_url
+      ? `<div class="success-box" style="margin-top:12px">
+          📄 สลิป: <b>ผ่านการตรวจสอบ</b>
+          <button class="btn small success" style="margin-left:5px" onclick="viewSlip('${safeJs(s.latest_slip_url)}')">ดูสลิป</button>
+        </div>`
+      : '';
+
+    return `
+      <div class="card student-card">
+        <div class="student-head">
+          <div>
+            <div class="student-name">${escapeHtml(s.student_name || '-')}</div>
+            <div class="meta">เลขที่ ${escapeHtml(s.student_number ?? '-')} • ${escapeHtml(s.class_name || '-')}</div>
+          </div>
         </div>
-      </td>`;
-    tbody.appendChild(tr);
-  });
+
+        <div class="status-row">
+          <span class="badge ${shirtPaid ? 'success':'pending'}">
+            เสื้อ: ${shirtPaid ? 'ชำระแล้ว':'ยังไม่ชำระ'}
+          </span>
+          <span class="badge ${feePaid ? 'success':'pending'}">
+            ค่าบำรุง: ${feePaid ? 'ชำระแล้ว':'ยังไม่ชำระ'}
+          </span>
+        </div>
+
+        ${slip}
+      </div>
+    `;
+  }).join('');
 }
 
-function filterData(){
-  const q=document.getElementById('searchInput').value.trim().toLowerCase();
-  renderData(allStudents.filter(x=>
-    String(x.name||'').toLowerCase().includes(q)||
-    String(x.class_name||'').toLowerCase().includes(q)||
-    String(x.student_id||'').toLowerCase().includes(q)
-  ));
+function normalizePaid(value){
+  return ['ชำระแล้ว','paid','จ่ายแล้ว','ผ่าน','อนุมัติ'].includes(String(value || '').trim());
 }
 
-function updateStats(data){
-  let spc=0,spa=0,suc=0,sua=0,fpc=0,fpa=0,fuc=0,fua=0;
-  data.forEach(x=>{
-    const s=Number(x.shirt_amount)||0,f=Number(x.fee_amount)||0;
-    if(x.shirt_status==='ชำระแล้ว'){spc++;spa+=s}else{suc++;sua+=s}
-    if(x.fee_status==='ชำระแล้ว'){fpc++;fpa+=f}else{fuc++;fua+=f}
-  });
-  document.getElementById('shirtPaidCount').innerText=spc;
-  document.getElementById('shirtPaidAmount').innerText=formatMoney(spa);
-  document.getElementById('shirtUnpaidCount').innerText=suc;
-  document.getElementById('shirtUnpaidAmount').innerText=formatMoney(sua);
-  document.getElementById('feePaidCount').innerText=fpc;
-  document.getElementById('feePaidAmount').innerText=formatMoney(fpa);
-  document.getElementById('feeUnpaidCount').innerText=fuc;
-  document.getElementById('feeUnpaidAmount').innerText=formatMoney(fua);
+function searchPaymentStudent(){
+  const input = document.getElementById('studentSearch');
+  const result = document.getElementById('studentSearchResult');
+  const q = (input.value || '').trim().toLowerCase();
+
+  if(!q){
+    result.innerHTML = '';
+    return;
+  }
+
+  const matches = allStudents.filter(s => {
+    const text = `${s.student_name || ''} ${s.student_number || ''} ${s.class_name || ''}`.toLowerCase();
+    return text.includes(q);
+  }).slice(0,10);
+
+  if(!matches.length){
+    result.innerHTML = '<div class="student-results"><div class="empty">ไม่พบชื่อนักเรียน</div></div>';
+    return;
+  }
+
+  result.innerHTML = `
+    <div class="student-results">
+      ${matches.map(s => `
+        <button class="student-result" onclick="selectPaymentStudent('${safeJs(String(s.id))}')">
+          <strong>${escapeHtml(s.student_name || '-')}</strong>
+          <span class="meta">เลขที่ ${escapeHtml(s.student_number ?? '-')} • ${escapeHtml(s.class_name || '-')}</span>
+        </button>
+      `).join('')}
+    </div>
+  `;
 }
 
-function getPayload(){
-  return{
-    prefix:document.getElementById('prefix').value.trim(),
-    name:document.getElementById('name').value.trim(),
-    student_id:document.getElementById('studentId').value.trim(),
-    class_name:document.getElementById('className').value.trim(),
-    shirt_status:document.getElementById('shirtStatus').value,
-    shirt_amount:Number(document.getElementById('shirtAmount').value)||0,
-    fee_status:document.getElementById('feeStatus').value,
-    fee_amount:Number(document.getElementById('feeAmount').value)||0,
-    note:document.getElementById('note').value.trim()
+function selectPaymentStudent(id){
+  const student = allStudents.find(s => String(s.id) === String(id));
+  if(!student) return;
+
+  selectedPaymentStudent = student;
+
+  document.getElementById('studentSearchResult').innerHTML = '';
+  document.getElementById('studentSearch').value = student.student_name || '';
+
+  const box = document.getElementById('selectedStudentBox');
+  box.classList.remove('hidden');
+  box.innerHTML = `
+    <strong>${escapeHtml(student.student_name || '-')}</strong>
+    <span>เลขที่ ${escapeHtml(student.student_number ?? '-')} • ห้อง ${escapeHtml(student.class_name || '-')}</span>
+  `;
+
+  buildPaymentOptions(student);
+}
+
+function buildPaymentOptions(student){
+  const select = document.getElementById('payType');
+  const amount = document.getElementById('payAmount');
+
+  const shirtPaid = normalizePaid(student.shirt_status);
+  const feePaid = normalizePaid(student.fee_status);
+
+  const options = [];
+
+  if(!shirtPaid) options.push({value:'ค่าเสื้อ', label:`ค่าเสื้อ — ${SHIRT_PRICE} บาท`, amount:SHIRT_PRICE});
+  if(!feePaid) options.push({value:'ค่าบำรุง', label:`ค่าบำรุง — ${FEE_PRICE} บาท`, amount:FEE_PRICE});
+
+  if(!shirtPaid && !feePaid){
+    options.push({value:'ค่าเสื้อ+ค่าบำรุง', label:`ค่าเสื้อ + ค่าบำรุง — ${SHIRT_PRICE + FEE_PRICE} บาท`, amount:SHIRT_PRICE + FEE_PRICE});
+  }
+
+  if(!options.length){
+    select.innerHTML = '<option value="">ชำระครบแล้ว</option>';
+    amount.value = '';
+    return;
+  }
+
+  select.innerHTML = '<option value="">-- เลือกรายการ --</option>' +
+    options.map(o => `<option value="${escapeAttr(o.value)}" data-amount="${o.amount}">${escapeHtml(o.label)}</option>`).join('');
+
+  amount.value = '';
+
+  select.onchange = () => {
+    const selected = select.options[select.selectedIndex];
+    amount.value = selected?.dataset?.amount ? `${selected.dataset.amount} บาท` : '';
   };
 }
 
-async function saveStudent(){
-  const p=getPayload();
-  if(!p.name){showAlert('ข้อผิดพลาด','กรุณากรอกชื่อ-นามสกุล','⚠️');return}
-  showLoading(true);
-  const{error}=await supabaseClient.from('sports_students').insert([p]);
-  showLoading(false);
-  if(error){showAlert('บันทึกไม่สำเร็จ',error.message,'❌');return}
-  resetForm();
-  await loadData();
-  showAlert('สำเร็จ','เพิ่มข้อมูลนักเรียนเรียบร้อยแล้ว','✅');
+function resetPaymentForm(){
+  selectedPaymentStudent = null;
+  document.getElementById('studentSearch').value = '';
+  document.getElementById('studentSearchResult').innerHTML = '';
+  document.getElementById('selectedStudentBox').classList.add('hidden');
+  document.getElementById('selectedStudentBox').innerHTML = '';
+  document.getElementById('payType').innerHTML = '<option value="">-- กรุณาเลือกนักเรียนก่อน --</option>';
+  document.getElementById('payAmount').value = '';
+  document.getElementById('paySlip').value = '';
+  document.getElementById('paymentMessage').innerHTML = '';
 }
-
-function startEdit(id){
-  const s=allStudents.find(x=>x.id===id);
-  if(!s)return;
-  document.getElementById('rowIndex').value=s.id;
-  document.getElementById('prefix').value=s.prefix||'';
-  document.getElementById('name').value=s.name||'';
-  document.getElementById('studentId').value=s.student_id||'';
-  document.getElementById('className').value=s.class_name||'';
-  document.getElementById('shirtStatus').value=s.shirt_status||'ค้างชำระ';
-  document.getElementById('shirtAmount').value=s.shirt_amount??250;
-  document.getElementById('feeStatus').value=s.fee_status||'ค้างชำระ';
-  document.getElementById('feeAmount').value=s.fee_amount??100;
-  document.getElementById('note').value=s.note||'';
-  document.getElementById('formTitle').innerText='✏️ แก้ไขข้อมูลนักเรียน';
-  document.getElementById('btnAdd').style.display='none';
-  document.getElementById('btnUpdate').style.display='inline-flex';
-  document.getElementById('btnCancel').style.display='inline-flex';
-  switchTab('admin');
-  window.scrollTo({top:0,behavior:'smooth'});
-}
-
-async function submitEdit(){
-  const id=document.getElementById('rowIndex').value,p=getPayload();
-  if(!p.name){showAlert('ข้อผิดพลาด','กรุณากรอกชื่อ-นามสกุล','⚠️');return}
-  showLoading(true);
-  const{error}=await supabaseClient.from('sports_students').update(p).eq('id',id);
-  showLoading(false);
-  if(error){showAlert('แก้ไขไม่สำเร็จ',error.message,'❌');return}
-  resetForm();
-  await loadData();
-  showAlert('สำเร็จ','แก้ไขข้อมูลเรียบร้อยแล้ว','✅');
-}
-
-function deleteStudent(id){
-  showConfirm('ยืนยันการลบ','คุณต้องการลบรายชื่อนี้ใช่หรือไม่?',async()=>{
-    showLoading(true);
-    const{error}=await supabaseClient.from('sports_students').delete().eq('id',id);
-    showLoading(false);
-    if(error){showAlert('ลบไม่สำเร็จ',error.message,'❌');return}
-    await loadData();
-    showAlert('สำเร็จ','ลบข้อมูลเรียบร้อยแล้ว','✅');
-  });
-}
-
-function resetForm(){
-  ['rowIndex','studentId','prefix','name','className','note'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('shirtStatus').value='ค้างชำระ';
-  document.getElementById('shirtAmount').value='250';
-  document.getElementById('feeStatus').value='ค้างชำระ';
-  document.getElementById('feeAmount').value='100';
-  document.getElementById('formTitle').innerText='➕ เพิ่มข้อมูลนักเรียน';
-  document.getElementById('btnAdd').style.display='inline-flex';
-  document.getElementById('btnUpdate').style.display='none';
-  document.getElementById('btnCancel').style.display='none';
-}
-
-/* SELF PAYMENT & PROMPTPAY */
-function openSelfPaymentModal(){
-  document.getElementById('payName').value='';
-  document.getElementById('payNumber').value='';
-  document.getElementById('payClass').value='';
-  document.getElementById('payType').value='';
-  document.getElementById('payAmount').value='';
-  document.getElementById('paymentSlip').value='';
-  document.getElementById('slipPreview').innerHTML='';
-  document.getElementById('qrSection').style.display='none';
-  openModal('selfPaymentModal');
-}
-
-function changePaymentType(){
-  const select=document.getElementById('payType');
-  const option=select.options[select.selectedIndex];
-  const amount=Number(option.dataset.amount||0);
-  document.getElementById('payAmount').value=amount||'';
-  if(!amount){document.getElementById('qrSection').style.display='none';return}
-  document.getElementById('qrSection').style.display='block';
-  document.getElementById('qrAmount').textContent=formatMoney(amount);
-  generatePromptPayQR(PROMPTPAY_NUMBER,amount);
-}
-
-function generatePromptPayQR(phone,amount){
-  const qr=document.getElementById('promptpayQR');
-  qr.innerHTML='';
-  const payload=generatePromptPayPayload(phone,amount);
-  new QRCode(qr,{text:payload,width:180,height:180,correctLevel:QRCode.CorrectLevel.M});
-}
-
-function generatePromptPayPayload(phone,amount){
-  phone=phone.replace(/\D/g,'');
-  let target='0066'+phone.substring(1);
-  target=target.padStart(13,'0');
-  const merchantAccount='0016A000000677010111'+'0213'+target;
-  const merchantField='29'+String(merchantAccount.length).padStart(2,'0')+merchantAccount;
-  const amountText=Number(amount).toFixed(2);
-  const payload='000201'+'010212'+merchantField+'5802TH'+'5303764'+'54'+String(amountText.length).padStart(2,'0')+amountText+'6304';
-  return payload+crc16(payload);
-}
-
-function crc16(str){
-  let crc=0xFFFF;
-  for(let i=0;i<str.length;i++){
-    crc^=str.charCodeAt(i)<<8;
-    for(let j=0;j<8;j++){
-      crc=(crc&0x8000)?((crc<<1)^0x1021):(crc<<1);
-      crc&=0xFFFF;
-    }
-  }
-  return crc.toString(16).toUpperCase().padStart(4,'0');
-}
-
-document.getElementById('paymentSlip').addEventListener('change',function(){
-  const file=this.files[0];
-  const preview=document.getElementById('slipPreview');
-  preview.innerHTML='';
-  if(!file)return;
-  if(!file.type.startsWith('image/')){preview.textContent='❌ กรุณาเลือกไฟล์รูปภาพ';this.value='';return}
-  if(file.size>8*1024*1024){preview.textContent='❌ ไฟล์ต้องไม่เกิน 8 MB';this.value='';return}
-  const reader=new FileReader();
-  reader.onload=e=>{preview.innerHTML=`<img src="${e.target.result}" alt="สลิป">`};
-  reader.readAsDataURL(file);
-});
 
 async function submitSelfPayment(){
-  const name=document.getElementById('payName').value.trim();
-  const number=document.getElementById('payNumber').value.trim();
-  const className=document.getElementById('payClass').value.trim();
-  const type=document.getElementById('payType').value;
-  const amount=Number(document.getElementById('payAmount').value);
-  const slip=document.getElementById('paymentSlip').files[0];
+  const message = document.getElementById('paymentMessage');
+  message.innerHTML = '';
 
-  if(!name){showAlert('ข้อผิดพลาด','กรุณากรอกชื่อ-นามสกุล','⚠️');return}
-  if(!type||!amount){showAlert('ข้อผิดพลาด','กรุณาเลือกรายการชำระเงิน','⚠️');return}
-  if(!slip){showAlert('ข้อผิดพลาด','กรุณาอัปโหลดสลิปการชำระเงิน','⚠️');return}
-
-  const btn=document.getElementById('submitPaymentBtn');
-  btn.disabled=true;btn.textContent='⏳ กำลังส่งข้อมูล...';
-
-  try{
-    const ext=(slip.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'');
-    const filePath='slips/'+Date.now()+'_'+Math.random().toString(36).substring(2)+'.'+ext;
-    const upload=await supabaseClient.storage.from('payment-slips').upload(filePath,slip,{contentType:slip.type,upsert:false});
-    if(upload.error) throw upload.error;
-
-    const publicData=supabaseClient.storage.from('payment-slips').getPublicUrl(filePath);
-    const receipt='PAY-'+Date.now().toString().slice(-6);
-
-    const result=await supabaseClient.from('payment_requests').insert({
-      receipt_no:receipt,
-      student_name:name,
-      student_number:number,
-      class_name:className,
-      payment_type:type,
-      amount:amount,
-      promptpay:PROMPTPAY_NUMBER,
-      slip_url:publicData.data.publicUrl,
-      status:'รอตรวจสอบ'
-    });
-
-    if(result.error) throw result.error;
-
-    closeModal('selfPaymentModal');
-    showAlert('ส่งหลักฐานสำเร็จ','ระบบบันทึกรายการเรียบร้อยแล้ว เลขที่ใบชำระ: '+receipt,'✅');
-    if(isAdmin) loadPaymentRequests();
-  }catch(err){
-    console.error(err);
-    showAlert('เกิดข้อผิดพลาด',err.message||'ไม่สามารถอัปโหลดข้อมูลได้','❌');
-  }finally{
-    btn.disabled=false;btn.textContent='ส่งหลักฐาน';
-  }
-}
-
-/* ADMIN APPROVAL SYSTEM */
-async function loadPaymentRequests(){
-  if(!isAdmin)return;
-  const tbody=document.getElementById('requestTableBody');
-  if(tbody) tbody.innerHTML='<tr><td colspan="6" class="empty">⏳ กำลังโหลด...</td></tr>';
-  const{data,error}=await supabaseClient.from('payment_requests').select('*').order('created_at',{ascending:false});
-  if(error){
-    if(tbody) tbody.innerHTML='<tr><td colspan="6" class="empty">❌ '+escapeHtml(error.message)+'</td></tr>';
+  if(!selectedPaymentStudent){
+    message.innerHTML = '<div class="error">กรุณาค้นหาและเลือกชื่อนักเรียนก่อน</div>';
     return;
   }
-  paymentRequests=data||[];
-  const pending=paymentRequests.filter(x=>x.status==='รอตรวจสอบ').length;
-  document.getElementById('pendingCount').textContent=pending;
-  renderRequestTable();
-}
 
-function renderRequestTable(){
-  const tbody=document.getElementById('requestTableBody');
-  if(!tbody)return;
-  if(!paymentRequests.length){tbody.innerHTML='<tr><td colspan="6" class="empty">ไม่มีรายการแจ้งชำระเงิน</td></tr>';return}
-  tbody.innerHTML=paymentRequests.map(p=>`
-    <tr>
-      <td>${escapeHtml(p.receipt_no)}<br><small>${escapeHtml(p.student_name)}</small></td>
-      <td>${escapeHtml(p.payment_type)}</td>
-      <td>฿${formatMoney(p.amount)}</td>
-      <td><span class="badge ${p.status==='อนุมัติแล้ว'?'badge-success':(p.status==='ปฏิเสธ'?'badge-danger':'badge-warning')}">${escapeHtml(p.status)}</span></td>
-      <td>${p.slip_url?`<button class="sm-btn btn-edit" onclick="viewRequest('${p.id}')">👁️ สลิป</button>`:'-'}</td>
-      <td><button class="sm-btn" onclick="viewRequest('${p.id}')">จัดการ</button></td>
-    </tr>
-  `).join('');
-}
+  const type = document.getElementById('payType').value;
+  const file = document.getElementById('paySlip').files[0];
 
-function viewRequest(id){
-  const p=paymentRequests.find(x=>String(x.id)===String(id));
-  if(!p)return;
-  selectedRequestId=id;
-  document.getElementById('requestDetail').innerHTML=`
-    <b>ผู้ชำระ:</b> ${escapeHtml(p.student_name)}<br>
-    <b>เลขที่:</b> ${escapeHtml(p.student_number||'-')} | <b>ห้อง:</b> ${escapeHtml(p.class_name||'-')}<br>
-    <b>รายการ:</b> ${escapeHtml(p.payment_type)} | <b>ยอดเงิน:</b> ฿${formatMoney(p.amount)}<br>
-    <b>สถานะปัจจุบัน:</b> ${escapeHtml(p.status)}<br>
-    <b>เวลาที่แจ้ง:</b> ${new Date(p.created_at).toLocaleString('th-TH')}
-  `;
-  document.getElementById('requestSlip').innerHTML=p.slip_url?`<a href="${p.slip_url}" target="_blank"><img src="${p.slip_url}" style="max-width:240px;border-radius:10px;border:1px solid #ddd"></a>`:'ไม่มีไฟล์สลิป';
-  openModal('requestDetailModal');
-}
+  if(!type){
+    message.innerHTML = '<div class="error">กรุณาเลือกรายการที่ต้องการชำระ</div>';
+    return;
+  }
 
-async function approveRequest(){
-  if(!selectedRequestId)return;
-  const p=paymentRequests.find(x=>String(x.id)===String(selectedRequestId));
-  if(!p)return;
+  if(!file){
+    message.innerHTML = '<div class="error">กรุณาแนบสลิปการโอนเงิน</div>';
+    return;
+  }
 
-  showLoading(true);
+  const amountMap = {
+    'ค่าเสื้อ': SHIRT_PRICE,
+    'ค่าบำรุง': FEE_PRICE,
+    'ค่าเสื้อ+ค่าบำรุง': SHIRT_PRICE + FEE_PRICE
+  };
+
+  const amount = amountMap[type];
+  if(!amount){
+    message.innerHTML = '<div class="error">รายการชำระเงินไม่ถูกต้อง</div>';
+    return;
+  }
+
   try{
-    // 1. อัปเดตสถานะการอนุมัติใน payment_requests
-    const updateReq=await supabaseClient.from('payment_requests').update({status:'อนุมัติแล้ว'}).eq('id',p.id);
-    if(updateReq.error) throw updateReq.error;
+    message.innerHTML = '<div class="notice">กำลังอัปโหลดสลิปและบันทึกรายการ...</div>';
 
-    // 2. ค้นหานักเรียนในตาราง sports_students และอัปเดตสถานะชำระเงินตามประเภทรายการที่เลือก
-    const{data:students}=await supabaseClient.from('sports_students').select('*');
-    const matched=students.find(s=>s.name.trim()===p.student_name.trim()||(p.student_number && String(s.student_id)===String(p.student_number)));
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const safeName = String(selectedPaymentStudent.id).replace(/[^a-zA-Z0-9_-]/g,'_');
+    const filePath = `payment-slips/${safeName}_${Date.now()}.${ext}`;
 
-    if(matched){
-      let updatePayload={};
-      if(p.payment_type.includes('ค่าเสื้อ')) updatePayload.shirt_status='ชำระแล้ว';
-      if(p.payment_type.includes('ค่าบำรุง')) updatePayload.fee_status='ชำระแล้ว';
-      await supabaseClient.from('sports_students').update(updatePayload).eq('id',matched.id);
-    }
+    const { error: uploadError } = await supabaseClient
+      .storage
+      .from('payment-slips')
+      .upload(filePath, file, {
+        upsert:false,
+        contentType:file.type || 'image/jpeg'
+      });
 
-    closeModal('requestDetailModal');
-    showAlert('อนุมัติสำเร็จ','ปรับสถานะรายการเรียบร้อยแล้ว','✅');
+    if(uploadError) throw uploadError;
+
+    const { data: publicData } = supabaseClient
+      .storage
+      .from('payment-slips')
+      .getPublicUrl(filePath);
+
+    const slipUrl = publicData?.publicUrl || '';
+
+    const { error: insertError } = await supabaseClient
+      .from('payment_requests')
+      .insert([{
+        student_id: selectedPaymentStudent.id,
+        student_name: selectedPaymentStudent.student_name,
+        student_number: selectedPaymentStudent.student_number,
+        class_name: selectedPaymentStudent.class_name,
+        payment_type: type,
+        amount: amount,
+        promptpay: PROMPTPAY,
+        slip_url: slipUrl,
+        status: 'รอตรวจสอบ'
+      }]);
+
+    if(insertError) throw insertError;
+
+    message.innerHTML = `
+      <div class="success-box">
+        ส่งรายการเรียบร้อยแล้ว กรุณารอผู้ดูแลตรวจสอบสลิป
+      </div>
+    `;
+
     await loadData();
-    await loadPaymentRequests();
+
+    setTimeout(() => {
+      resetPaymentForm();
+    }, 1500);
+
   }catch(err){
-    showAlert('เกิดข้อผิดพลาด',err.message,'❌');
-  }finally{
-    showLoading(false);
+    console.error(err);
+    message.innerHTML = '<div class="error">ส่งรายการไม่สำเร็จ: ' + escapeHtml(err.message || 'เกิดข้อผิดพลาด') + '</div>';
   }
 }
 
-async function rejectRequest(){
-  if(!selectedRequestId)return;
-  showLoading(true);
-  try{
-    const{error}=await supabaseClient.from('payment_requests').update({status:'ปฏิเสธ'}).eq('id',selectedRequestId);
-    if(error) throw error;
-    closeModal('requestDetailModal');
-    showAlert('ทำรายการสำเร็จ','ปฏิเสธรายการแจ้งชำระแล้ว','ℹ️');
-    await loadPaymentRequests();
-  }catch(err){
-    showAlert('เกิดข้อผิดพลาด',err.message,'❌');
-  }finally{
-    showLoading(false);
+function renderRequests(){
+  const table = document.getElementById('requestTable');
+  if(!table) return;
+
+  const q = (document.getElementById('requestSearch')?.value || '').trim().toLowerCase();
+
+  const filtered = requests.filter(r => {
+    const text = `${r.student_name || ''} ${r.student_number || ''} ${r.payment_type || ''} ${r.status || ''}`.toLowerCase();
+    return !q || text.includes(q);
+  });
+
+  const pending = requests.filter(r => r.status === 'รอตรวจสอบ').length;
+  const approved = requests.filter(r => r.status === 'อนุมัติ').length;
+  const rejected = requests.filter(r => ['ไม่ผ่าน','ปฏิเสธ','ยกเลิก'].includes(r.status)).length;
+
+  document.getElementById('pendingCount').textContent = pending;
+  document.getElementById('approvedCount').textContent = approved;
+  document.getElementById('rejectedCount').textContent = rejected;
+
+  if(!filtered.length){
+    table.innerHTML = '<div class="empty">ไม่มีรายการ</div>';
+    return;
   }
-}
 
-/* BULK DATA IMPORT */
-function splitBulkLine(line){
-  if(line.includes('\t')) return line.split('\t');
-  if(line.includes('|')) return line.split('|');
-  return line.split(',');
-}
-
-function parseBulkData(){
-  const raw=(document.getElementById('bulkData').value||'').trim();
-  if(!raw) return [];
-  const lines=raw.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
-  const rows=lines.map(splitBulkLine).map(cols=>cols.map(x=>x.trim()));
-  
-  if(rows.length && /เลขที่|name|ชื่อ/i.test(rows[0].join(' '))) rows.shift();
-
-  return rows.map(c=>({
-    student_id:c[0]||'',
-    prefix:c[1]||'',
-    name:c[2]||'',
-    class_name:c[3]||'',
-    shirt_status:c[4]||'ค้างชำระ',
-    shirt_amount:Number(c[5])||250,
-    fee_status:c[6]||'ค้างชำระ',
-    fee_amount:Number(c[7])||100,
-    note:c[8]||''
-  })).filter(x=>x.name);
-}
-
-function previewBulkData(){
-  const rows=parseBulkData();
-  const el=document.getElementById('bulkPreview');
-  if(!rows.length){el.innerHTML='<div class="empty">ยังไม่พบข้อมูลที่ถูกต้อง</div>';return}
-  el.innerHTML=`
-    <div class="admin-table-container">
-      <table class="admin-table">
-        <thead><tr><th>ชื่อ-นามสกุล</th><th>ห้อง</th><th>ค่าเสื้อ</th><th>ค่าบำรุง</th></tr></thead>
+  table.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>วันที่</th>
+            <th>นักเรียน</th>
+            <th>เลขที่ / ห้อง</th>
+            <th>รายการ</th>
+            <th>จำนวนเงิน</th>
+            <th>สถานะ</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
         <tbody>
-          ${rows.map(r=>`<tr><td>${escapeHtml(r.prefix)} ${escapeHtml(r.name)}</td><td>${escapeHtml(r.class_name)}</td><td>${escapeHtml(r.shirt_status)} (${r.shirt_amount})</td><td>${escapeHtml(r.fee_status)} (${r.fee_amount})</td></tr>`).join('')}
+          ${filtered.map(r => `
+            <tr>
+              <td>${formatDate(r.created_at)}</td>
+              <td>${escapeHtml(r.student_name || '-')}</td>
+              <td>${escapeHtml(r.student_number ?? '-')} / ${escapeHtml(r.class_name || '-')}</td>
+              <td>${escapeHtml(r.payment_type || '-')}</td>
+              <td>${Number(r.amount || 0).toLocaleString()} บาท</td>
+              <td>${statusBadge(r.status)}</td>
+              <td>
+                <button class="btn small secondary" onclick="openRequest('${safeJs(String(r.id))}')">ตรวจสอบ</button>
+              </td>
+            </tr>
+          `).join('')}
         </tbody>
       </table>
     </div>
-    <div class="help-box">พบทั้งหมด <b>${rows.length}</b> รายการ</div>
   `;
 }
 
-async function saveBulkData(){
-  const rows=parseBulkData();
-  if(!rows.length){showAlert('ข้อผิดพลาด','กรุณาวางข้อมูลก่อน','⚠️');return}
-  showLoading(true);
-  const{error}=await supabaseClient.from('sports_students').insert(rows);
-  showLoading(false);
-  if(error){showAlert('นำเข้าไม่สำเร็จ',error.message,'❌');return}
-  document.getElementById('bulkData').value='';
-  document.getElementById('bulkPreview').innerHTML='';
-  await loadData();
-  showAlert('สำเร็จ',`นำเข้าข้อมูลเรียบร้อยแล้ว ${rows.length} รายการ`,'✅');
+function statusBadge(status){
+  let cls = 'pending';
+  if(status === 'อนุมัติ') cls = 'success';
+  if(['ไม่ผ่าน','ปฏิเสธ','ยกเลิก'].includes(status)) cls = 'danger';
+  return `<span class="badge ${cls}">${escapeHtml(status || '-')}</span>`;
 }
 
-/* UTILS */
-async function testConnection(){
-  showLoading(true);
+function openRequest(id){
+  const req = requests.find(r => String(r.id) === String(id));
+  if(!req) return;
+
+  currentRequest = req;
+
+  document.getElementById('requestModalBody').innerHTML = `
+    <div class="grid" style="grid-template-columns:1fr 1fr">
+      <div>
+        <div class="meta">นักเรียน</div>
+        <strong>${escapeHtml(req.student_name || '-')}</strong>
+      </div>
+      <div>
+        <div class="meta">เลขที่ / ห้อง</div>
+        <strong>${escapeHtml(req.student_number ?? '-')} / ${escapeHtml(req.class_name || '-')}</strong>
+      </div>
+      <div>
+        <div class="meta">รายการ</div>
+        <strong>${escapeHtml(req.payment_type || '-')}</strong>
+      </div>
+      <div>
+        <div class="meta">จำนวนเงิน</div>
+        <strong>${Number(req.amount || 0).toLocaleString()} บาท</strong>
+      </div>
+      <div>
+        <div class="meta">สถานะ</div>
+        <div style="margin-top:5px">${statusBadge(req.status)}</div>
+      </div>
+      <div>
+        <div class="meta">วันที่ส่ง</div>
+        <strong>${formatDate(req.created_at)}</strong>
+      </div>
+    </div>
+
+    <div style="margin-top:18px">
+      <div class="meta" style="margin-bottom:7px">สลิป</div>
+      ${req.slip_url
+        ? `<img class="slip-preview" src="${escapeAttr(req.slip_url)}" alt="slip">`
+        : '<div class="empty">ไม่มีสลิป</div>'
+      }
+    </div>
+  `;
+
+  const disabled = req.status !== 'รอตรวจสอบ';
+  document.querySelector('#requestModal .btn.danger').disabled = disabled;
+  document.querySelector('#requestModal .btn.success').disabled = disabled;
+
+  openModal('requestModal');
+}
+
+async function approveCurrentRequest(){
+  if(!currentRequest) return;
+  await approveRequest(currentRequest);
+}
+
+async function rejectCurrentRequest(){
+  if(!currentRequest) return;
+  await rejectRequest(currentRequest);
+}
+
+async function approveRequest(req){
+  if(req.status !== 'รอตรวจสอบ') return;
+
   try{
-    const{data,error}=await supabaseClient.from('sports_students').select('id').limit(1);
-    showLoading(false);
-    if(error) throw error;
-    showAlert('เชื่อมต่อสำเร็จ','เชื่อมต่อ Supabase เรียบร้อยแล้ว','✅');
+    const { error: updateError } = await supabaseClient
+      .from('payment_requests')
+      .update({status:'อนุมัติ'})
+      .eq('id', req.id);
+
+    if(updateError) throw updateError;
+
+    // IMPORTANT: identify the student by student_id, not by name.
+    const matched = allStudents.find(s => String(s.id) === String(req.student_id));
+
+    if(!matched){
+      throw new Error('ไม่พบรหัสนักเรียนที่เชื่อมกับรายการนี้');
+    }
+
+    const update = {};
+
+    if(req.payment_type === 'ค่าเสื้อ'){
+      update.shirt_status = 'ชำระแล้ว';
+    }else if(req.payment_type === 'ค่าบำรุง'){
+      update.fee_status = 'ชำระแล้ว';
+    }else if(req.payment_type === 'ค่าเสื้อ+ค่าบำรุง'){
+      update.shirt_status = 'ชำระแล้ว';
+      update.fee_status = 'ชำระแล้ว';
+    }
+
+    if(Object.keys(update).length){
+      const { error: studentError } = await supabaseClient
+        .from('sports_students')
+        .update(update)
+        .eq('id', matched.id);
+
+      if(studentError) throw studentError;
+    }
+
+    closeModal('requestModal');
+    currentRequest = null;
+    alert('อนุมัติการชำระเงินเรียบร้อยแล้ว');
+    await loadData();
+
   }catch(err){
-    showLoading(false);
-    showAlert('เชื่อมต่อไม่สำเร็จ',err.message||String(err),'❌');
+    console.error(err);
+    alert('อนุมัติไม่สำเร็จ: ' + (err.message || 'เกิดข้อผิดพลาด'));
   }
 }
 
-function showLoading(show){document.getElementById('loading').style.display=show?'block':'none'}
-function formatMoney(v){return Number(v||0).toLocaleString('th-TH',{minimumFractionDigits:0,maximumFractionDigits:2})}
-function escapeHtml(v){return v==null?'':String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;')}
+async function rejectRequest(req){
+  if(req.status !== 'รอตรวจสอบ') return;
+
+  try{
+    const { error } = await supabaseClient
+      .from('payment_requests')
+      .update({status:'ไม่ผ่าน'})
+      .eq('id', req.id);
+
+    if(error) throw error;
+
+    closeModal('requestModal');
+    currentRequest = null;
+    alert('บันทึกว่าไม่ผ่านเรียบร้อยแล้ว');
+    await loadData();
+
+  }catch(err){
+    console.error(err);
+    alert('ดำเนินการไม่สำเร็จ: ' + (err.message || 'เกิดข้อผิดพลาด'));
+  }
+}
+
+function updateStats(){
+  document.getElementById('totalStudents').textContent = students.length;
+  document.getElementById('shirtPaid').textContent = students.filter(s => normalizePaid(s.shirt_status)).length;
+  document.getElementById('feePaid').textContent = students.filter(s => normalizePaid(s.fee_status)).length;
+}
+
+function renderAdminStudents(){
+  const box = document.getElementById('adminStudentTable');
+  if(!box) return;
+
+  const q = (document.getElementById('adminSearch')?.value || '').trim().toLowerCase();
+
+  const filtered = allStudents.filter(s => {
+    const text = `${s.student_name || ''} ${s.student_number || ''} ${s.class_name || ''}`.toLowerCase();
+    return !q || text.includes(q);
+  });
+
+  if(!filtered.length){
+    box.innerHTML = '<div class="empty">ไม่พบข้อมูล</div>';
+    return;
+  }
+
+  box.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>เลขที่</th>
+            <th>ชื่อ-นามสกุล</th>
+            <th>ห้อง</th>
+            <th>ค่าเสื้อ</th>
+            <th>ค่าบำรุง</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filtered.map(s => `
+            <tr>
+              <td>${escapeHtml(s.student_number ?? '-')}</td>
+              <td>${escapeHtml(s.student_name || '-')}</td>
+              <td>${escapeHtml(s.class_name || '-')}</td>
+              <td>${statusBadge(normalizePaid(s.shirt_status) ? 'อนุมัติ':'รอตรวจสอบ')}</td>
+              <td>${statusBadge(normalizePaid(s.fee_status) ? 'อนุมัติ':'รอตรวจสอบ')}</td>
+              <td>
+                <div class="actions" style="margin:0">
+                  <button class="btn small secondary" onclick="editStudent('${safeJs(String(s.id))}')">แก้ไข</button>
+                  <button class="btn small danger" onclick="deleteStudent('${safeJs(String(s.id))}')">ลบ</button>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function openStudentModal(){
+  document.getElementById('studentModalTitle').textContent = 'เพิ่มนักเรียน';
+  document.getElementById('studentEditId').value = '';
+  document.getElementById('studentNumber').value = '';
+  document.getElementById('studentName').value = '';
+  document.getElementById('studentClass').value = '';
+  document.getElementById('studentShirtStatus').value = 'ยังไม่ชำระ';
+  document.getElementById('studentFeeStatus').value = 'ยังไม่ชำระ';
+  openModal('studentModal');
+}
+
+function editStudent(id){
+  const s = allStudents.find(x => String(x.id) === String(id));
+  if(!s) return;
+
+  document.getElementById('studentModalTitle').textContent = 'แก้ไขนักเรียน';
+  document.getElementById('studentEditId').value = s.id;
+  document.getElementById('studentNumber').value = s.student_number ?? '';
+  document.getElementById('studentName').value = s.student_name ?? '';
+  document.getElementById('studentClass').value = s.class_name ?? '';
+  document.getElementById('studentShirtStatus').value = normalizePaid(s.shirt_status) ? 'ชำระแล้ว':'ยังไม่ชำระ';
+  document.getElementById('studentFeeStatus').value = normalizePaid(s.fee_status) ? 'ชำระแล้ว':'ยังไม่ชำระ';
+  openModal('studentModal');
+}
+
+async function saveStudent(){
+  const id = document.getElementById('studentEditId').value;
+  const studentNumber = document.getElementById('studentNumber').value.trim();
+  const studentName = document.getElementById('studentName').value.trim();
+  const className = document.getElementById('studentClass').value.trim();
+  const shirtStatus = document.getElementById('studentShirtStatus').value;
+  const feeStatus = document.getElementById('studentFeeStatus').value;
+
+  if(!studentName){
+    alert('กรุณากรอกชื่อ-นามสกุล');
+    return;
+  }
+
+  try{
+    const payload = {
+      student_number: studentNumber,
+      student_name: studentName,
+      class_name: className,
+      shirt_status: shirtStatus,
+      fee_status: feeStatus
+    };
+
+    let error;
+
+    if(id){
+      ({error} = await supabaseClient
+        .from('sports_students')
+        .update(payload)
+        .eq('id', id));
+    }else{
+      ({error} = await supabaseClient
+        .from('sports_students')
+        .insert([payload]));
+    }
+
+    if(error) throw error;
+
+    closeModal('studentModal');
+    await loadData();
+    alert('บันทึกข้อมูลเรียบร้อยแล้ว');
+
+  }catch(err){
+    console.error(err);
+    alert('บันทึกไม่สำเร็จ: ' + (err.message || 'เกิดข้อผิดพลาด'));
+  }
+}
+
+async function deleteStudent(id){
+  const s = allStudents.find(x => String(x.id) === String(id));
+  if(!s) return;
+
+  if(!confirm(`ต้องการลบนักเรียน "${s.student_name}" ใช่หรือไม่?`)) return;
+
+  try{
+    const { error } = await supabaseClient
+      .from('sports_students')
+      .delete()
+      .eq('id', id);
+
+    if(error) throw error;
+
+    await loadData();
+    alert('ลบข้อมูลเรียบร้อยแล้ว');
+  }catch(err){
+    console.error(err);
+    alert('ลบไม่สำเร็จ: ' + (err.message || 'เกิดข้อผิดพลาด'));
+  }
+}
+
+function openImportModal(){
+  document.getElementById('importText').value = '';
+  document.getElementById('importMessage').innerHTML = '';
+  openModal('importModal');
+}
+
+async function importStudents(){
+  const text = document.getElementById('importText').value.trim();
+  const msg = document.getElementById('importMessage');
+
+  if(!text){
+    msg.innerHTML = '<div class="error">กรุณาวางข้อมูลก่อน</div>';
+    return;
+  }
+
+  const lines = text.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+  const rows = [];
+
+  for(const line of lines){
+    let parts = line.split(/\t+/);
+
+    if(parts.length < 3){
+      parts = line.split(/\s{2,}/);
+    }
+
+    if(parts.length < 3){
+      const m = line.match(/^(\S+)\s+(.+?)\s+(ม\.\s*\d+\/\d+|\d+\/\d+)$/);
+      if(m) parts = [m[1],m[2],m[3]];
+    }
+
+    if(parts.length >= 3){
+      rows.push({
+        student_number: parts[0].trim(),
+        student_name: parts[1].trim(),
+        class_name: parts.slice(2).join(' ').trim(),
+        shirt_status:'ยังไม่ชำระ',
+        fee_status:'ยังไม่ชำระ'
+      });
+    }
+  }
+
+  if(!rows.length){
+    msg.innerHTML = '<div class="error">ไม่สามารถอ่านข้อมูลได้ กรุณาตรวจสอบรูปแบบข้อมูล</div>';
+    return;
+  }
+
+  try{
+    msg.innerHTML = '<div class="notice">กำลังนำเข้า...</div>';
+
+    const { error } = await supabaseClient
+      .from('sports_students')
+      .insert(rows);
+
+    if(error) throw error;
+
+    msg.innerHTML = `<div class="success-box">นำเข้าสำเร็จ ${rows.length} รายการ</div>`;
+    await loadData();
+
+    setTimeout(() => closeModal('importModal'), 800);
+
+  }catch(err){
+    console.error(err);
+    msg.innerHTML = '<div class="error">นำเข้าไม่สำเร็จ: ' + escapeHtml(err.message || 'เกิดข้อผิดพลาด') + '</div>';
+  }
+}
+
+function viewSlip(url){
+  if(!url) return;
+  window.open(url,'_blank','noopener,noreferrer');
+}
+
+function openModal(id){
+  document.getElementById(id).classList.add('show');
+}
+function closeModal(id){
+  document.getElementById(id).classList.remove('show');
+}
+
+document.querySelectorAll('.modal').forEach(modal => {
+  modal.addEventListener('click', e => {
+    if(e.target === modal) modal.classList.remove('show');
+  });
+});
+
+function formatDate(value){
+  if(!value) return '-';
+  const d = new Date(value);
+  if(Number.isNaN(d.getTime())) return '-';
+  return d.toLocaleString('th-TH',{
+    dateStyle:'short',
+    timeStyle:'short'
+  });
+}
+
+function escapeHtml(value){
+  return String(value ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+}
+
+function escapeAttr(value){
+  return escapeHtml(value);
+}
+
+function safeJs(value){
+  return String(value ?? '')
+    .replace(/\\/g,'\\\\')
+    .replace(/'/g,"\\'")
+    .replace(/\r/g,'\\r')
+    .replace(/\n/g,'\\n');
+}
 </script>
 </body>
 </html>
