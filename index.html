@@ -307,6 +307,86 @@ th{background:#f8fafc;white-space:nowrap}
   border-radius:13px;
   margin:12px 0 15px;
 }
+
+.bank-card{
+  margin:0 0 18px;
+  padding:18px;
+  border-radius:18px;
+  background:linear-gradient(135deg,#ffffff,#eff6ff);
+  border:1px solid #dbeafe;
+  box-shadow:0 8px 24px rgba(37,99,235,.07);
+}
+.bank-head{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:15px;
+}
+.bank-logo{
+  width:52px;
+  height:52px;
+  border-radius:14px;
+  object-fit:contain;
+  background:#fff;
+  border:1px solid var(--border);
+  padding:6px;
+}
+.bank-placeholder{
+  width:52px;
+  height:52px;
+  border-radius:14px;
+  background:#dbeafe;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:24px;
+}
+.bank-title{
+  font-size:18px;
+  font-weight:700;
+}
+.bank-subtitle{
+  color:var(--muted);
+  font-size:12px;
+}
+.account-row{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:13px;
+  padding:12px 14px;
+  margin-top:9px;
+}
+.account-label{
+  color:var(--muted);
+  font-size:12px;
+}
+.account-value{
+  font-size:16px;
+  font-weight:600;
+  margin-top:2px;
+  word-break:break-word;
+}
+.account-number-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.account-number{
+  font-size:22px;
+  letter-spacing:1px;
+  font-weight:700;
+}
+.copy-btn{
+  flex-shrink:0;
+  border:0;
+  border-radius:10px;
+  padding:9px 12px;
+  background:#dbeafe;
+  color:#1d4ed8;
+  font-weight:600;
+}
+.copy-btn:hover{background:#bfdbfe}
 .selected-student strong{display:block}
 .slip-preview{
   width:100%;
@@ -387,6 +467,30 @@ footer{
     </div>
 
     <div class="card">
+      <div class="bank-card">
+        <div class="bank-head">
+          <div id="bankLogoBox" class="bank-placeholder">🏦</div>
+          <img id="bankLogoDisplay" class="bank-logo hidden" alt="โลโก้ธนาคาร">
+          <div>
+            <div id="bankNameDisplay" class="bank-title">ธนาคาร</div>
+            <div class="bank-subtitle">บัญชีสำหรับชำระค่ากีฬาสี</div>
+          </div>
+        </div>
+
+        <div class="account-row">
+          <div class="account-label">ชื่อบัญชี</div>
+          <div id="accountNameDisplay" class="account-value">-</div>
+        </div>
+
+        <div class="account-row">
+          <div class="account-label">เลขบัญชี</div>
+          <div class="account-number-row">
+            <div id="accountNumberDisplay" class="account-number">-</div>
+            <button id="copyAccountBtn" class="copy-btn" onclick="copyAccountNumber()">คัดลอก</button>
+          </div>
+        </div>
+      </div>
+
       <div class="notice">
         กรุณาเลือกชื่อของตัวเองให้ถูกต้อง เพราะระบบจะเชื่อมรายการชำระกับรหัสนักเรียนโดยตรง
       </div>
@@ -464,6 +568,64 @@ footer{
         <button class="btn secondary" onclick="openImportModal()">นำเข้าหลายรายการ</button>
         <button class="btn gray" onclick="loadData()">รีเฟรชข้อมูล</button>
       </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="section-title" style="margin-top:0">
+        <h2 style="font-size:19px">กำหนดราคาค่ากีฬาสี</h2>
+      </div>
+      <div class="notice">
+        ราคาที่ตั้งตรงนี้จะถูกนำไปใช้ในหน้าสำหรับแจ้งชำระเงินโดยอัตโนมัติ
+      </div>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">
+        <div class="form-group">
+          <label>ราคาค่าเสื้อ (บาท)</label>
+          <input id="shirtPriceSetting" type="number" min="0" step="1" value="250">
+        </div>
+        <div class="form-group">
+          <label>ราคาค่าบำรุง (บาท)</label>
+          <input id="feePriceSetting" type="number" min="0" step="1" value="100">
+        </div>
+      </div>
+      <div class="status-row" style="margin-top:0;margin-bottom:12px">
+        <span class="badge info">ค่าเสื้อ: <b id="currentShirtPrice">250 บาท</b></span>
+        <span class="badge info">ค่าบำรุง: <b id="currentFeePrice">100 บาท</b></span>
+        <span class="badge success">รวม: <b id="currentCombinedPrice">350 บาท</b></span>
+      </div>
+      <button class="btn primary" onclick="savePrices()">บันทึกราคา</button>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="section-title" style="margin-top:0">
+        <h2 style="font-size:19px">ข้อมูลบัญชีรับเงิน</h2>
+      </div>
+      <div class="notice">
+        ข้อมูลนี้จะแสดงในหน้า “แจ้งชำระเงิน” พร้อมปุ่มคัดลอกเลขบัญชี
+      </div>
+
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+        <div class="form-group">
+          <label>ชื่อธนาคาร</label>
+          <input id="bankNameSetting" placeholder="เช่น ธนาคารกสิกรไทย">
+        </div>
+
+        <div class="form-group">
+          <label>โลโก้ธนาคาร (URL รูปภาพ)</label>
+          <input id="bankLogoSetting" placeholder="https://.../logo.png">
+        </div>
+
+        <div class="form-group">
+          <label>ชื่อบัญชี</label>
+          <input id="accountNameSetting" placeholder="เช่น นายวัชรพงศ์ ปะวะโน">
+        </div>
+
+        <div class="form-group">
+          <label>เลขบัญชี</label>
+          <input id="accountNumberSetting" inputmode="numeric" placeholder="เช่น 1234567890">
+        </div>
+      </div>
+
+      <button class="btn primary" onclick="saveBankInfo()">บันทึกข้อมูลบัญชี</button>
     </div>
 
     <div class="card" style="margin-top:16px">
@@ -567,8 +729,128 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const ADMIN_PASSWORD = '123456';
 const PROMPTPAY = '0614417784';
-const SHIRT_PRICE = 250;
-const FEE_PRICE = 100;
+
+let SHIRT_PRICE = Number(localStorage.getItem('np404_shirt_price') || 250);
+let FEE_PRICE = Number(localStorage.getItem('np404_fee_price') || 100);
+
+function savePrices(){
+  const shirt = Number(document.getElementById('shirtPriceSetting').value);
+  const fee = Number(document.getElementById('feePriceSetting').value);
+
+  if(!Number.isFinite(shirt) || shirt < 0 || !Number.isFinite(fee) || fee < 0){
+    alert('กรุณากรอกราคาเป็นตัวเลขที่ถูกต้อง');
+    return;
+  }
+
+  SHIRT_PRICE = shirt;
+  FEE_PRICE = fee;
+
+  localStorage.setItem('np404_shirt_price', String(SHIRT_PRICE));
+  localStorage.setItem('np404_fee_price', String(FEE_PRICE));
+
+  buildPaymentOptions(selectedPaymentStudent);
+  updatePriceDisplay();
+  alert('บันทึกราคาสำเร็จ');
+}
+
+function updatePriceDisplay(){
+  const shirtEl = document.getElementById('currentShirtPrice');
+  const feeEl = document.getElementById('currentFeePrice');
+  const totalEl = document.getElementById('currentCombinedPrice');
+
+  if(shirtEl) shirtEl.textContent = `${SHIRT_PRICE.toLocaleString()} บาท`;
+  if(feeEl) feeEl.textContent = `${FEE_PRICE.toLocaleString()} บาท`;
+  if(totalEl) totalEl.textContent = `${(SHIRT_PRICE + FEE_PRICE).toLocaleString()} บาท`;
+
+  const shirtInput = document.getElementById('shirtPriceSetting');
+  const feeInput = document.getElementById('feePriceSetting');
+  if(shirtInput) shirtInput.value = SHIRT_PRICE;
+  if(feeInput) feeInput.value = FEE_PRICE;
+}
+
+let BANK_NAME = localStorage.getItem('np404_bank_name') || 'ธนาคาร';
+let BANK_LOGO = localStorage.getItem('np404_bank_logo') || '';
+let ACCOUNT_NAME = localStorage.getItem('np404_account_name') || '';
+let ACCOUNT_NUMBER = localStorage.getItem('np404_account_number') || '';
+
+function saveBankInfo(){
+  BANK_NAME = document.getElementById('bankNameSetting').value.trim();
+  BANK_LOGO = document.getElementById('bankLogoSetting').value.trim();
+  ACCOUNT_NAME = document.getElementById('accountNameSetting').value.trim();
+  ACCOUNT_NUMBER = document.getElementById('accountNumberSetting').value.trim();
+
+  localStorage.setItem('np404_bank_name', BANK_NAME);
+  localStorage.setItem('np404_bank_logo', BANK_LOGO);
+  localStorage.setItem('np404_account_name', ACCOUNT_NAME);
+  localStorage.setItem('np404_account_number', ACCOUNT_NUMBER);
+
+  updateBankDisplay();
+  alert('บันทึกข้อมูลบัญชีเรียบร้อยแล้ว');
+}
+
+function updateBankDisplay(){
+  const logo = document.getElementById('bankLogoDisplay');
+  const bank = document.getElementById('bankNameDisplay');
+  const account = document.getElementById('accountNameDisplay');
+  const number = document.getElementById('accountNumberDisplay');
+
+  if(bank) bank.textContent = BANK_NAME || 'ธนาคาร';
+  if(account) account.textContent = ACCOUNT_NAME || '-';
+  if(number) number.textContent = formatAccountNumber(ACCOUNT_NUMBER) || '-';
+
+  const logoBox = document.getElementById('bankLogoBox');
+
+  if(logo){
+    if(BANK_LOGO){
+      logo.src = BANK_LOGO;
+      logo.classList.remove('hidden');
+      if(logoBox) logoBox.classList.add('hidden');
+    }else{
+      logo.removeAttribute('src');
+      logo.classList.add('hidden');
+      if(logoBox) logoBox.classList.remove('hidden');
+    }
+  }
+
+  const bankNameInput = document.getElementById('bankNameSetting');
+  const bankLogoInput = document.getElementById('bankLogoSetting');
+  const accountNameInput = document.getElementById('accountNameSetting');
+  const accountNumberInput = document.getElementById('accountNumberSetting');
+
+  if(bankNameInput) bankNameInput.value = BANK_NAME;
+  if(bankLogoInput) bankLogoInput.value = BANK_LOGO;
+  if(accountNameInput) accountNameInput.value = ACCOUNT_NAME;
+  if(accountNumberInput) accountNumberInput.value = ACCOUNT_NUMBER;
+}
+
+function formatAccountNumber(value){
+  return String(value || '').replace(/\s+/g,'');
+}
+
+async function copyAccountNumber(){
+  if(!ACCOUNT_NUMBER){
+    alert('ยังไม่ได้กำหนดเลขบัญชี');
+    return;
+  }
+
+  try{
+    await navigator.clipboard.writeText(formatAccountNumber(ACCOUNT_NUMBER));
+    const btn = document.getElementById('copyAccountBtn');
+    if(btn){
+      const old = btn.textContent;
+      btn.textContent = '✓ คัดลอกแล้ว';
+      setTimeout(() => btn.textContent = old, 1500);
+    }
+  }catch(err){
+    const temp = document.createElement('textarea');
+    temp.value = formatAccountNumber(ACCOUNT_NUMBER);
+    document.body.appendChild(temp);
+    temp.select();
+    document.execCommand('copy');
+    temp.remove();
+    alert('คัดลอกเลขบัญชีแล้ว');
+  }
+}
 
 let students = [];
 let allStudents = [];
@@ -578,6 +860,8 @@ let currentRequest = null;
 let isAdmin = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
+  updatePriceDisplay();
+  updateBankDisplay();
   await loadData();
 });
 
@@ -593,9 +877,12 @@ function showPage(page, btn){
   }
   if(page === 'admin'){
     if(!requireAdmin()) return;
+    updatePriceDisplay();
+    updateBankDisplay();
     renderAdminStudents();
   }
   if(page === 'selfPayment'){
+    updateBankDisplay();
     resetPaymentForm();
   }
 }
