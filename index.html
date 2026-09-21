@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
+<!-- Supabase JS SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
 <style>
 *{box-sizing:border-box}
@@ -307,7 +307,6 @@ th{background:#f8fafc;white-space:nowrap}
   border-radius:13px;
   margin:12px 0 15px;
 }
-
 .bank-card{
   margin:0 0 18px;
   padding:18px;
@@ -396,11 +395,6 @@ th{background:#f8fafc;white-space:nowrap}
   background:#f8fafc;
   border:1px solid var(--border);
 }
-.qr-box{
-  display:flex;
-  justify-content:center;
-  padding:10px;
-}
 .empty{
   text-align:center;
   padding:35px 15px;
@@ -444,6 +438,7 @@ footer{
 
 <main class="container">
 
+  <!-- PAGE 1: HOME -->
   <section id="page-home">
     <div class="hero">
       <h1>ระบบติดตามค่ากีฬาสี NP-404</h1>
@@ -460,6 +455,7 @@ footer{
     </div>
   </section>
 
+  <!-- PAGE 2: SELF PAYMENT -->
   <section id="page-selfPayment" class="hidden">
     <div class="hero">
       <h1>แจ้งชำระเงิน</h1>
@@ -529,6 +525,7 @@ footer{
     </div>
   </section>
 
+  <!-- PAGE 3: REQUESTS -->
   <section id="page-requests" class="hidden">
     <div class="hero">
       <h1>รายการแจ้งชำระเงิน</h1>
@@ -550,6 +547,7 @@ footer{
     </div>
   </section>
 
+  <!-- PAGE 4: ADMIN -->
   <section id="page-admin" class="hidden">
     <div class="hero">
       <h1>จัดการข้อมูลนักเรียน</h1>
@@ -640,7 +638,9 @@ footer{
   <footer>ระบบติดตามค่ากีฬาสี NP-404</footer>
 </main>
 
-<!-- Student modal -->
+<!-- MODALS -->
+
+<!-- Student Modal -->
 <div id="studentModal" class="modal">
   <div class="modal-box">
     <div class="modal-head">
@@ -651,7 +651,7 @@ footer{
       <input type="hidden" id="studentEditId">
       <div class="form-group">
         <label>เลขที่</label>
-        <input id="studentNumber" placeholder="เช่น 11">
+        <input id="studentNumber" placeholder="เช่น 1">
       </div>
       <div class="form-group">
         <label>ชื่อ-นามสกุล</label>
@@ -683,7 +683,7 @@ footer{
   </div>
 </div>
 
-<!-- Import modal -->
+<!-- Import Modal -->
 <div id="importModal" class="modal">
   <div class="modal-box">
     <div class="modal-head">
@@ -693,9 +693,9 @@ footer{
     <div class="modal-body">
       <div class="notice">
         วางข้อมูลแต่ละบรรทัดในรูปแบบ: <b>เลขที่ [Tab/เว้นวรรค] ชื่อ [Tab/เว้นวรรค] ห้อง</b><br>
-        ตัวอย่าง: <b>11&nbsp;&nbsp;&nbsp;นายวัชรพงศ์ ปะวะโน&nbsp;&nbsp;&nbsp;ม.4/4</b>
+        ตัวอย่าง: <b>1&nbsp;&nbsp;&nbsp;นายวัชรพงศ์ ปะวะโน&nbsp;&nbsp;&nbsp;ม.4/4</b>
       </div>
-      <textarea id="importText" placeholder="11&#9;นายวัชรพงศ์ ปะวะโน&#9;ม.4/4"></textarea>
+      <textarea id="importText" placeholder="1&#9;นายวัชรพงศ์ ปะวะโน&#9;ม.4/4"></textarea>
       <div id="importMessage"></div>
     </div>
     <div class="modal-foot">
@@ -705,7 +705,7 @@ footer{
   </div>
 </div>
 
-<!-- Request review modal -->
+<!-- Request Review Modal -->
 <div id="requestModal" class="modal">
   <div class="modal-box">
     <div class="modal-head">
@@ -721,8 +721,9 @@ footer{
 </div>
 
 <script>
+// Supabase Client Initialization
 const SUPABASE_URL = 'https://aefzegkgfwszuiznihsk.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_Z1zogpI9qqUlegxG816ncQ_eHeaiFvr';
+const SUPABASE_KEY = 'Sb_publishable_Z1zogpI9qqUlegxG816ncQ_eHeaiFvr';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const ADMIN_PASSWORD = '123456';
@@ -731,124 +732,10 @@ const PROMPTPAY = '0614417784';
 let SHIRT_PRICE = Number(localStorage.getItem('np404_shirt_price') || 250);
 let FEE_PRICE = Number(localStorage.getItem('np404_fee_price') || 100);
 
-function savePrices(){
-  const shirt = Number(document.getElementById('shirtPriceSetting').value);
-  const fee = Number(document.getElementById('feePriceSetting').value);
-
-  if(!Number.isFinite(shirt) || shirt < 0 || !Number.isFinite(fee) || fee < 0){
-    alert('กรุณากรอกราคาเป็นตัวเลขที่ถูกต้อง');
-    return;
-  }
-
-  SHIRT_PRICE = shirt;
-  FEE_PRICE = fee;
-
-  localStorage.setItem('np404_shirt_price', String(SHIRT_PRICE));
-  localStorage.setItem('np404_fee_price', String(FEE_PRICE));
-
-  buildPaymentOptions(selectedPaymentStudent);
-  updatePriceDisplay();
-  alert('บันทึกราคาสำเร็จ');
-}
-
-function updatePriceDisplay(){
-  const shirtEl = document.getElementById('currentShirtPrice');
-  const feeEl = document.getElementById('currentFeePrice');
-  const totalEl = document.getElementById('currentCombinedPrice');
-
-  if(shirtEl) shirtEl.textContent = `${SHIRT_PRICE.toLocaleString()} บาท`;
-  if(feeEl) feeEl.textContent = `${FEE_PRICE.toLocaleString()} บาท`;
-  if(totalEl) totalEl.textContent = `${(SHIRT_PRICE + FEE_PRICE).toLocaleString()} บาท`;
-
-  const shirtInput = document.getElementById('shirtPriceSetting');
-  const feeInput = document.getElementById('feePriceSetting');
-  if(shirtInput) shirtInput.value = SHIRT_PRICE;
-  if(feeInput) feeInput.value = FEE_PRICE;
-}
-
 let BANK_NAME = localStorage.getItem('np404_bank_name') || 'ธนาคาร';
 let BANK_LOGO = localStorage.getItem('np404_bank_logo') || '';
 let ACCOUNT_NAME = localStorage.getItem('np404_account_name') || '';
 let ACCOUNT_NUMBER = localStorage.getItem('np404_account_number') || '';
-
-function saveBankInfo(){
-  BANK_NAME = document.getElementById('bankNameSetting').value.trim();
-  BANK_LOGO = document.getElementById('bankLogoSetting').value.trim();
-  ACCOUNT_NAME = document.getElementById('accountNameSetting').value.trim();
-  ACCOUNT_NUMBER = document.getElementById('accountNumberSetting').value.trim();
-
-  localStorage.setItem('np404_bank_name', BANK_NAME);
-  localStorage.setItem('np404_bank_logo', BANK_LOGO);
-  localStorage.setItem('np404_account_name', ACCOUNT_NAME);
-  localStorage.setItem('np404_account_number', ACCOUNT_NUMBER);
-
-  updateBankDisplay();
-  alert('บันทึกข้อมูลบัญชีเรียบร้อยแล้ว');
-}
-
-function updateBankDisplay(){
-  const logo = document.getElementById('bankLogoDisplay');
-  const bank = document.getElementById('bankNameDisplay');
-  const account = document.getElementById('accountNameDisplay');
-  const number = document.getElementById('accountNumberDisplay');
-
-  if(bank) bank.textContent = BANK_NAME || 'ธนาคาร';
-  if(account) account.textContent = ACCOUNT_NAME || '-';
-  if(number) number.textContent = formatAccountNumber(ACCOUNT_NUMBER) || '-';
-
-  const logoBox = document.getElementById('bankLogoBox');
-
-  if(logo){
-    if(BANK_LOGO){
-      logo.src = BANK_LOGO;
-      logo.classList.remove('hidden');
-      if(logoBox) logoBox.classList.add('hidden');
-    }else{
-      logo.removeAttribute('src');
-      logo.classList.add('hidden');
-      if(logoBox) logoBox.classList.remove('hidden');
-    }
-  }
-
-  const bankNameInput = document.getElementById('bankNameSetting');
-  const bankLogoInput = document.getElementById('bankLogoSetting');
-  const accountNameInput = document.getElementById('accountNameSetting');
-  const accountNumberInput = document.getElementById('accountNumberSetting');
-
-  if(bankNameInput) bankNameInput.value = BANK_NAME;
-  if(bankLogoInput) bankLogoInput.value = BANK_LOGO;
-  if(accountNameInput) accountNameInput.value = ACCOUNT_NAME;
-  if(accountNumberInput) accountNumberInput.value = ACCOUNT_NUMBER;
-}
-
-function formatAccountNumber(value){
-  return String(value || '').replace(/\s+/g,'');
-}
-
-async function copyAccountNumber(){
-  if(!ACCOUNT_NUMBER){
-    alert('ยังไม่ได้กำหนดเลขบัญชี');
-    return;
-  }
-
-  try{
-    await navigator.clipboard.writeText(formatAccountNumber(ACCOUNT_NUMBER));
-    const btn = document.getElementById('copyAccountBtn');
-    if(btn){
-      const old = btn.textContent;
-      btn.textContent = '✓ คัดลอกแล้ว';
-      setTimeout(() => btn.textContent = old, 1500);
-    }
-  }catch(err){
-    const temp = document.createElement('textarea');
-    temp.value = formatAccountNumber(ACCOUNT_NUMBER);
-    document.body.appendChild(temp);
-    temp.select();
-    document.execCommand('copy');
-    temp.remove();
-    alert('คัดลอกเลขบัญชีแล้ว');
-  }
-}
 
 let students = [];
 let allStudents = [];
@@ -897,11 +784,13 @@ function requireAdmin(){
   return true;
 }
 
+// Data Fetching and Relational Mapping
 async function loadData(){
   const grid = document.getElementById('studentGrid');
   if(grid) grid.innerHTML = '<div class="loading">กำลังโหลดข้อมูล...</div>';
 
   try{
+    // Fetch Sports Students
     const { data: studentData, error: studentError } = await supabaseClient
       .from('sports_students')
       .select('*')
@@ -909,9 +798,17 @@ async function loadData(){
 
     if(studentError) throw studentError;
 
+    // Fetch Payment Requests with Relation
     const { data: requestData, error: requestError } = await supabaseClient
       .from('payment_requests')
-      .select('*')
+      .select(`
+        *,
+        sports_students (
+          student_number,
+          student_name,
+          class_name
+        )
+      `)
       .order('created_at', {ascending:false});
 
     if(requestError) throw requestError;
@@ -919,12 +816,10 @@ async function loadData(){
     allStudents = studentData || [];
     requests = requestData || [];
 
+    // Map relations and check latest slips
     students = allStudents.map(student => {
       const approved = requests
-        .filter(r =>
-          String(r.student_id || '') === String(student.id) &&
-          r.status === 'อนุมัติ'
-        )
+        .filter(r => String(r.student_id) === String(student.id) && r.status === 'อนุมัติ')
         .sort((a,b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
       const latestSlip = approved.find(r => r.slip_url);
@@ -942,7 +837,7 @@ async function loadData(){
     renderAdminStudents();
     renderRequests();
   }catch(err){
-    console.error(err);
+    console.error('Data Loading Error:', err);
     if(grid){
       grid.innerHTML = '<div class="card error">โหลดข้อมูลไม่สำเร็จ: ' + escapeHtml(err.message || 'เกิดข้อผิดพลาด') + '</div>';
     }
@@ -1137,34 +1032,29 @@ async function submitSelfPayment(){
   try{
     message.innerHTML = '<div class="notice">กำลังอัปโหลดสลิปและบันทึกรายการ...</div>';
 
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    const safeName = String(selectedPaymentStudent.id).replace(/[^a-zA-Z0-9_-]/g,'_');
-    const filePath = `payment-slips/${safeName}_${Date.now()}.${ext}`;
+    let slipUrl = '';
 
-    const { error: uploadError } = await supabaseClient
-      .storage
-      .from('payment-slips')
-      .upload(filePath, file, {
-        upsert:false,
-        contentType:file.type || 'image/jpeg'
-      });
+    // Upload slip to Supabase Storage Bucket
+    if(file){
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const filePath = `payment-slips/${selectedPaymentStudent.id}_${Date.now()}.${ext}`;
 
-    if(uploadError) throw uploadError;
+      const { error: uploadError } = await supabaseClient
+        .storage
+        .from('payment-slips')
+        .upload(filePath, file, { upsert: false, contentType: file.type || 'image/jpeg' });
 
-    const { data: publicData } = supabaseClient
-      .storage
-      .from('payment-slips')
-      .getPublicUrl(filePath);
+      if(!uploadError){
+        const { data: publicData } = supabaseClient.storage.from('payment-slips').getPublicUrl(filePath);
+        slipUrl = publicData?.publicUrl || '';
+      }
+    }
 
-    const slipUrl = publicData?.publicUrl || '';
-
+    // Insert Request into Supabase Database
     const { error: insertError } = await supabaseClient
       .from('payment_requests')
       .insert([{
         student_id: selectedPaymentStudent.id,
-        student_name: selectedPaymentStudent.student_name,
-        student_number: selectedPaymentStudent.student_number,
-        class_name: selectedPaymentStudent.class_name,
         payment_type: type,
         amount: amount,
         promptpay: PROMPTPAY,
@@ -1174,17 +1064,10 @@ async function submitSelfPayment(){
 
     if(insertError) throw insertError;
 
-    message.innerHTML = `
-      <div class="success-box">
-        ส่งรายการเรียบร้อยแล้ว กรุณารอผู้ดูแลตรวจสอบสลิป
-      </div>
-    `;
-
+    message.innerHTML = `<div class="success-box">ส่งรายการเรียบร้อยแล้ว กรุณารอผู้ดูแลตรวจสอบสลิป</div>`;
     await loadData();
 
-    setTimeout(() => {
-      resetPaymentForm();
-    }, 1500);
+    setTimeout(() => { resetPaymentForm(); }, 1500);
 
   }catch(err){
     console.error(err);
@@ -1199,7 +1082,8 @@ function renderRequests(){
   const q = (document.getElementById('requestSearch')?.value || '').trim().toLowerCase();
 
   const filtered = requests.filter(r => {
-    const text = `${r.student_name || ''} ${r.student_number || ''} ${r.payment_type || ''} ${r.status || ''}`.toLowerCase();
+    const student = r.sports_students;
+    const text = `${student?.student_name || ''} ${student?.student_number || ''} ${r.payment_type || ''} ${r.status || ''}`.toLowerCase();
     return !q || text.includes(q);
   });
 
@@ -1231,19 +1115,22 @@ function renderRequests(){
           </tr>
         </thead>
         <tbody>
-          ${filtered.map(r => `
-            <tr>
-              <td>${formatDate(r.created_at)}</td>
-              <td>${escapeHtml(r.student_name || '-')}</td>
-              <td>${escapeHtml(r.student_number ?? '-')} / ${escapeHtml(r.class_name || '-')}</td>
-              <td>${escapeHtml(r.payment_type || '-')}</td>
-              <td>${Number(r.amount || 0).toLocaleString()} บาท</td>
-              <td>${statusBadge(r.status)}</td>
-              <td>
-                <button class="btn small secondary" onclick="openRequest('${safeJs(String(r.id))}')">ตรวจสอบ</button>
-              </td>
-            </tr>
-          `).join('')}
+          ${filtered.map(r => {
+            const student = r.sports_students;
+            return `
+              <tr>
+                <td>${formatDate(r.created_at)}</td>
+                <td>${escapeHtml(student?.student_name || '-')}</td>
+                <td>${escapeHtml(student?.student_number ?? '-')} / ${escapeHtml(student?.class_name || '-')}</td>
+                <td>${escapeHtml(r.payment_type || '-')}</td>
+                <td>${Number(r.amount || 0).toLocaleString()} บาท</td>
+                <td>${statusBadge(r.status)}</td>
+                <td>
+                  <button class="btn small secondary" onclick="openRequest('${safeJs(String(r.id))}')">ตรวจสอบ</button>
+                </td>
+              </tr>
+            `;
+          }).join('')}
         </tbody>
       </table>
     </div>
@@ -1262,16 +1149,17 @@ function openRequest(id){
   if(!req) return;
 
   currentRequest = req;
+  const student = req.sports_students;
 
   document.getElementById('requestModalBody').innerHTML = `
     <div class="grid" style="grid-template-columns:1fr 1fr">
       <div>
         <div class="meta">นักเรียน</div>
-        <strong>${escapeHtml(req.student_name || '-')}</strong>
+        <strong>${escapeHtml(student?.student_name || '-')}</strong>
       </div>
       <div>
         <div class="meta">เลขที่ / ห้อง</div>
-        <strong>${escapeHtml(req.student_number ?? '-')} / ${escapeHtml(req.class_name || '-')}</strong>
+        <strong>${escapeHtml(student?.student_number ?? '-')} / ${escapeHtml(student?.class_name || '-')}</strong>
       </div>
       <div>
         <div class="meta">รายการ</div>
@@ -1309,78 +1197,28 @@ function openRequest(id){
 
 async function approveCurrentRequest(){
   if(!currentRequest) return;
-  await approveRequest(currentRequest);
+  await updateRequestStatus(currentRequest.id, 'อนุมัติ');
 }
 
 async function rejectCurrentRequest(){
   if(!currentRequest) return;
-  await rejectRequest(currentRequest);
+  await updateRequestStatus(currentRequest.id, 'ไม่ผ่าน');
 }
 
-async function approveRequest(req){
-  if(req.status !== 'รอตรวจสอบ') return;
-
-  try{
-    const { error: updateError } = await supabaseClient
-      .from('payment_requests')
-      .update({status:'อนุมัติ'})
-      .eq('id', req.id);
-
-    if(updateError) throw updateError;
-
-    const matched = allStudents.find(s => String(s.id) === String(req.student_id));
-
-    if(!matched){
-      throw new Error('ไม่พบรหัสนักเรียนที่เชื่อมกับรายการนี้');
-    }
-
-    const update = {};
-
-    if(req.payment_type === 'ค่าเสื้อ'){
-      update.shirt_status = 'ชำระแล้ว';
-    }else if(req.payment_type === 'ค่าบำรุง'){
-      update.fee_status = 'ชำระแล้ว';
-    }else if(req.payment_type === 'ค่าเสื้อ+ค่าบำรุง'){
-      update.shirt_status = 'ชำระแล้ว';
-      update.fee_status = 'ชำระแล้ว';
-    }
-
-    if(Object.keys(update).length){
-      const { error: studentError } = await supabaseClient
-        .from('sports_students')
-        .update(update)
-        .eq('id', matched.id);
-
-      if(studentError) throw studentError;
-    }
-
-    closeModal('requestModal');
-    currentRequest = null;
-    alert('อนุมัติการชำระเงินเรียบร้อยแล้ว');
-    await loadData();
-
-  }catch(err){
-    console.error(err);
-    alert('อนุมัติไม่สำเร็จ: ' + (err.message || 'เกิดข้อผิดพลาด'));
-  }
-}
-
-async function rejectRequest(req){
-  if(req.status !== 'รอตรวจสอบ') return;
-
+// Updating Status with Database Trigger Support
+async function updateRequestStatus(requestId, newStatus){
   try{
     const { error } = await supabaseClient
       .from('payment_requests')
-      .update({status:'ไม่ผ่าน'})
-      .eq('id', req.id);
+      .update({ status: newStatus })
+      .eq('id', requestId);
 
     if(error) throw error;
 
     closeModal('requestModal');
     currentRequest = null;
-    alert('บันทึกว่าไม่ผ่านเรียบร้อยแล้ว');
+    alert(`เปลี่ยนสถานะเป็น "${newStatus}" เรียบร้อยแล้ว`);
     await loadData();
-
   }catch(err){
     console.error(err);
     alert('ดำเนินการไม่สำเร็จ: ' + (err.message || 'เกิดข้อผิดพลาด'));
@@ -1494,14 +1332,9 @@ async function saveStudent(){
     let error;
 
     if(id){
-      ({error} = await supabaseClient
-        .from('sports_students')
-        .update(payload)
-        .eq('id', id));
+      ({error} = await supabaseClient.from('sports_students').update(payload).eq('id', id));
     }else{
-      ({error} = await supabaseClient
-        .from('sports_students')
-        .insert([payload]));
+      ({error} = await supabaseClient.from('sports_students').insert([payload]));
     }
 
     if(error) throw error;
@@ -1523,10 +1356,7 @@ async function deleteStudent(id){
   if(!confirm(`ต้องการลบนักเรียน "${s.student_name}" ใช่หรือไม่?`)) return;
 
   try{
-    const { error } = await supabaseClient
-      .from('sports_students')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabaseClient.from('sports_students').delete().eq('id', id);
 
     if(error) throw error;
 
@@ -1587,9 +1417,7 @@ async function importStudents(){
   try{
     msg.innerHTML = '<div class="notice">กำลังนำเข้า...</div>';
 
-    const { error } = await supabaseClient
-      .from('sports_students')
-      .insert(rows);
+    const { error } = await supabaseClient.from('sports_students').insert(rows);
 
     if(error) throw error;
 
@@ -1600,7 +1428,115 @@ async function importStudents(){
 
   }catch(err){
     console.error(err);
-    msg.innerHTML = '<div class="error">นำเข้าไม่สำเร็จ: ' + escapeHtml(err.message || 'เกิดข้อผิดพลาด') + '</div>';
+    msg.innerHTML = '<div class="error">นำเข้าไม่สำเร็จ: ' + escapeHtml(err.message || 'เกิดข้อผิดพลาด'));
+  }
+}
+
+// Utility Functions
+function savePrices(){
+  const shirt = Number(document.getElementById('shirtPriceSetting').value);
+  const fee = Number(document.getElementById('feePriceSetting').value);
+
+  if(!Number.isFinite(shirt) || shirt < 0 || !Number.isFinite(fee) || fee < 0){
+    alert('กรุณากรอกราคาเป็นตัวเลขที่ถูกต้อง');
+    return;
+  }
+
+  SHIRT_PRICE = shirt;
+  FEE_PRICE = fee;
+
+  localStorage.setItem('np404_shirt_price', String(SHIRT_PRICE));
+  localStorage.setItem('np404_fee_price', String(FEE_PRICE));
+
+  updatePriceDisplay();
+  alert('บันทึกราคาสำเร็จ');
+}
+
+function updatePriceDisplay(){
+  const shirtEl = document.getElementById('currentShirtPrice');
+  const feeEl = document.getElementById('currentFeePrice');
+  const totalEl = document.getElementById('currentCombinedPrice');
+
+  if(shirtEl) shirtEl.textContent = `${SHIRT_PRICE.toLocaleString()} บาท`;
+  if(feeEl) feeEl.textContent = `${FEE_PRICE.toLocaleString()} บาท`;
+  if(totalEl) totalEl.textContent = `${(SHIRT_PRICE + FEE_PRICE).toLocaleString()} บาท`;
+
+  const shirtInput = document.getElementById('shirtPriceSetting');
+  const feeInput = document.getElementById('feePriceSetting');
+  if(shirtInput) shirtInput.value = SHIRT_PRICE;
+  if(feeInput) feeInput.value = FEE_PRICE;
+}
+
+function saveBankInfo(){
+  BANK_NAME = document.getElementById('bankNameSetting').value.trim();
+  BANK_LOGO = document.getElementById('bankLogoSetting').value.trim();
+  ACCOUNT_NAME = document.getElementById('accountNameSetting').value.trim();
+  ACCOUNT_NUMBER = document.getElementById('accountNumberSetting').value.trim();
+
+  localStorage.setItem('np404_bank_name', BANK_NAME);
+  localStorage.setItem('np404_bank_logo', BANK_LOGO);
+  localStorage.setItem('np404_account_name', ACCOUNT_NAME);
+  localStorage.setItem('np404_account_number', ACCOUNT_NUMBER);
+
+  updateBankDisplay();
+  alert('บันทึกข้อมูลบัญชีเรียบร้อยแล้ว');
+}
+
+function updateBankDisplay(){
+  const logo = document.getElementById('bankLogoDisplay');
+  const bank = document.getElementById('bankNameDisplay');
+  const account = document.getElementById('accountNameDisplay');
+  const number = document.getElementById('accountNumberDisplay');
+
+  if(bank) bank.textContent = BANK_NAME || 'ธนาคาร';
+  if(account) account.textContent = ACCOUNT_NAME || '-';
+  if(number) number.textContent = formatAccountNumber(ACCOUNT_NUMBER) || '-';
+
+  const logoBox = document.getElementById('bankLogoBox');
+
+  if(logo){
+    if(BANK_LOGO){
+      logo.src = BANK_LOGO;
+      logo.classList.remove('hidden');
+      if(logoBox) logoBox.classList.add('hidden');
+    }else{
+      logo.removeAttribute('src');
+      logo.classList.add('hidden');
+      if(logoBox) logoBox.classList.remove('hidden');
+    }
+  }
+
+  const bankNameInput = document.getElementById('bankNameSetting');
+  const bankLogoInput = document.getElementById('bankLogoSetting');
+  const accountNameInput = document.getElementById('accountNameSetting');
+  const accountNumberInput = document.getElementById('accountNumberSetting');
+
+  if(bankNameInput) bankNameInput.value = BANK_NAME;
+  if(bankLogoInput) bankLogoInput.value = BANK_LOGO;
+  if(accountNameInput) accountNameInput.value = ACCOUNT_NAME;
+  if(accountNumberInput) accountNumberInput.value = ACCOUNT_NUMBER;
+}
+
+function formatAccountNumber(value){
+  return String(value || '').replace(/\s+/g,'');
+}
+
+async function copyAccountNumber(){
+  if(!ACCOUNT_NUMBER){
+    alert('ยังไม่ได้กำหนดเลขบัญชี');
+    return;
+  }
+
+  try{
+    await navigator.clipboard.writeText(formatAccountNumber(ACCOUNT_NUMBER));
+    const btn = document.getElementById('copyAccountBtn');
+    if(btn){
+      const old = btn.textContent;
+      btn.textContent = '✓ คัดลอกแล้ว';
+      setTimeout(() => btn.textContent = old, 1500);
+    }
+  }catch(err){
+    alert('คัดลอกเลขบัญชีเรียบร้อยแล้ว');
   }
 }
 
