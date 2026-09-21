@@ -640,8 +640,6 @@ footer{
   <footer>ระบบติดตามค่ากีฬาสี NP-404</footer>
 </main>
 
-<!-- Self payment modal is intentionally not used; payment form is on page -->
-
 <!-- Student modal -->
 <div id="studentModal" class="modal">
   <div class="modal-box">
@@ -921,7 +919,6 @@ async function loadData(){
     allStudents = studentData || [];
     requests = requestData || [];
 
-    // Use student_id as the primary link. Names/numbers are only display fields.
     students = allStudents.map(student => {
       const approved = requests
         .filter(r =>
@@ -1331,7 +1328,6 @@ async function approveRequest(req){
 
     if(updateError) throw updateError;
 
-    // IMPORTANT: identify the student by student_id, not by name.
     const matched = allStudents.find(s => String(s.id) === String(req.student_id));
 
     if(!matched){
