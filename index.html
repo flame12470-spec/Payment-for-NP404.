@@ -434,6 +434,7 @@ footer{
       <button id="nav-selfPayment" onclick="showPage('selfPayment')">แจ้งชำระเงิน</button>
       <button id="nav-requests" onclick="showPage('requests')">รายการแจ้งชำระ</button>
       <button id="nav-admin" onclick="showPage('admin')">จัดการข้อมูล</button>
+      <button id="nav-logout" class="hidden" onclick="adminLogout()">ออกจากระบบ</button>
     </nav>
   </div>
 </header>
@@ -707,6 +708,31 @@ footer{
   </div>
 </div>
 
+<!-- Admin Login Modal -->
+<div id="loginModal" class="modal">
+  <div class="modal-box" style="width:min(420px,100%)">
+    <div class="modal-head">
+      <h3>เข้าสู่ระบบผู้ดูแล</h3>
+      <button class="close" onclick="closeModal('loginModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>อีเมล</label>
+        <input id="loginEmail" type="email" autocomplete="username" placeholder="admin@example.com">
+      </div>
+      <div class="form-group">
+        <label>รหัสผ่าน</label>
+        <input id="loginPassword" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter') submitLogin()">
+      </div>
+      <div id="loginMessage"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn gray" onclick="closeModal('loginModal')">ยกเลิก</button>
+      <button id="loginBtn" class="btn primary" onclick="submitLogin()">เข้าสู่ระบบ</button>
+    </div>
+  </div>
+</div>
+
 <!-- Request Review Modal -->
 <div id="requestModal" class="modal">
   <div class="modal-box">
@@ -749,16 +775,39 @@ function initSupabase(){
 
 initSupabase();
 
-const ADMIN_PASSWORD = '123456';
+const NO_PERMISSION_MSG = 'ไม่มีสิทธิ์แก้ไขข้อมูล หรือเซสชันหมดอายุ — กรุณาเข้าสู่ระบบผู้ดูแลใหม่';
 const PROMPTPAY = '0614417784';
 
-let SHIRT_PRICE = Number(localStorage.getItem('np404_shirt_price') || 250);
-let FEE_PRICE = Number(localStorage.getItem('np404_fee_price') || 100);
+// ---- Settings (ราคา + บัญชีธนาคาร) ----
+// แหล่งข้อมูลจริงคือตาราง Supabase "sports_settings"
+// localStorage ใช้เป็นแค่ cache ชั่วคราว เพื่อให้หน้าเว็บมีค่าแสดงทันทีระหว่างรอโหลดจากฐานข้อมูล
+const SETTINGS_TABLE = 'sports_settings';
 
-let BANK_NAME = localStorage.getItem('np404_bank_name') || 'ธนาคาร';
-let BANK_LOGO = localStorage.getItem('np404_bank_logo') || '';
-let ACCOUNT_NAME = localStorage.getItem('np404_account_name') || '';
-let ACCOUNT_NUMBER = localStorage.getItem('np404_account_number') || '';
+function cacheGet(key, fallback){
+  try{
+    const v = localStorage.getItem(key);
+    return v === null ? fallback : v;
+  }catch(e){ return fallback; }
+}
+function cacheSet(key, value){
+  try{ localStorage.setItem(key, String(value ?? '')); }catch(e){}
+}
+function numOr(value, fallback){
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
+let SHIRT_PRICE = numOr(cacheGet('np404_shirt_price', 250), 250);
+let FEE_PRICE = numOr(cacheGet('np404_fee_price', 100), 100);
+
+let BANK_NAME = cacheGet('np404_bank_name', '') || 'ธนาคาร';
+let BANK_LOGO = cacheGet('np404_bank_logo', '');
+let ACCOUNT_NAME = cacheGet('np404_account_name', '');
+let ACCOUNT_NUMBER = cacheGet('np404_account_number', '');
+
+let settingsLastError = '';
+let settingsLastLoadedAt = 0;
+let optionsBuiltWithPrices = '';
 
 let students = [];
 let allStudents = [];
@@ -773,15 +822,94 @@ document.addEventListener('DOMContentLoaded', () => {
   try{ updateBankDisplay(); }catch(e){ console.error(e); }
 
   // Load data in the background. Do not await it here.
+  initAuth();
+
   setTimeout(() => {
+    loadSettings().catch(err => console.error('Background loadSettings error:', err));
     loadData().catch(err => console.error('Background loadData error:', err));
   }, 0);
 });
 
+// เมื่อผู้ใช้กลับมาเปิดแท็บ/แอปอีกครั้ง ให้ดึงราคาและบัญชีล่าสุดจากฐานข้อมูลใหม่
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible' && Date.now() - settingsLastLoadedAt > 5000){
+    loadSettings().catch(err => console.error(err));
+  }
+});
+
+async function loadSettings(){
+  if(!supabaseReady || !supabaseClient) return false;
+  try{
+    const result = await Promise.race([
+      supabaseClient.from(SETTINGS_TABLE).select('key,value'),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('หมดเวลาโหลดการตั้งค่า')), 15000))
+    ]);
+    if(result.error) throw result.error;
+
+    const map = {};
+    (result.data || []).forEach(r => { map[r.key] = r.value; });
+    applySettings(map);
+
+    settingsLastError = '';
+    settingsLastLoadedAt = Date.now();
+    return true;
+  }catch(err){
+    settingsLastError = err?.message || String(err);
+    console.warn('โหลดการตั้งค่าจากฐานข้อมูลไม่สำเร็จ (ใช้ค่าที่เคยจำไว้แทน):', err);
+    return false;
+  }
+}
+
+function applySettings(map){
+  if('shirt_price' in map) SHIRT_PRICE = numOr(map.shirt_price, SHIRT_PRICE);
+  if('fee_price' in map) FEE_PRICE = numOr(map.fee_price, FEE_PRICE);
+  if('bank_name' in map) BANK_NAME = map.bank_name || 'ธนาคาร';
+  if('bank_logo' in map) BANK_LOGO = map.bank_logo || '';
+  if('account_name' in map) ACCOUNT_NAME = map.account_name || '';
+  if('account_number' in map) ACCOUNT_NUMBER = map.account_number || '';
+
+  cacheSet('np404_shirt_price', SHIRT_PRICE);
+  cacheSet('np404_fee_price', FEE_PRICE);
+  cacheSet('np404_bank_name', BANK_NAME);
+  cacheSet('np404_bank_logo', BANK_LOGO);
+  cacheSet('np404_account_name', ACCOUNT_NAME);
+  cacheSet('np404_account_number', ACCOUNT_NUMBER);
+
+  try{ updatePriceDisplay(); }catch(e){ console.error(e); }
+  try{ updateBankDisplay(); }catch(e){ console.error(e); }
+}
+
+async function saveSettingsToDb(values){
+  if(!supabaseReady || !supabaseClient){
+    throw new Error('ยังไม่ได้เชื่อมต่อ Supabase');
+  }
+  const now = new Date().toISOString();
+  const rows = Object.entries(values).map(([key, value]) => ({
+    key,
+    value: String(value ?? ''),
+    updated_at: now
+  }));
+  const { error } = await supabaseClient
+    .from(SETTINGS_TABLE)
+    .upsert(rows, { onConflict: 'key' });
+  if(error) throw error;
+}
+
+function settingsErrorText(err){
+  const msg = err?.message || String(err);
+  if(err?.code === '42P01' || err?.code === 'PGRST205' || /does not exist|schema cache/i.test(msg)){
+    return 'ยังไม่มีตาราง sports_settings ใน Supabase — กรุณารันไฟล์ setup_settings.sql ก่อน';
+  }
+  if(err?.code === '42501' || /row-level security|permission denied/i.test(msg)){
+    return 'ไม่มีสิทธิ์บันทึก — กรุณาเข้าสู่ระบบผู้ดูแลอีกครั้ง (หรือรัน setup_settings.sql / secure_rls.sql ถ้ายังไม่ได้ตั้งค่า)';
+  }
+  return msg;
+}
+
 function showPage(page){
   try{
     if(page === 'requests' || page === 'admin'){
-      if(!requireAdmin()) return;
+      if(!requireAdmin(page)) return;
     }
 
     // Change the visible page FIRST. No database call is allowed to block this.
@@ -800,10 +928,12 @@ function showPage(page){
         updatePriceDisplay();
         updateBankDisplay();
         renderAdminStudents();
+        loadSettings();
       }
       if(page === 'selfPayment'){
         updateBankDisplay();
         resetPaymentForm();
+        loadSettings();
       }
     }catch(renderError){
       console.error('Page render error:', renderError);
@@ -813,15 +943,121 @@ function showPage(page){
   }
 }
 
-function requireAdmin(){
+// ---------- Admin authentication (Supabase Auth) ----------
+let pendingAdminPage = null;
+
+function requireAdmin(page){
   if(isAdmin) return true;
-  const pass = prompt('กรุณาใส่รหัสผู้ดูแลระบบ');
-  if(pass !== ADMIN_PASSWORD){
-    alert('รหัสผ่านไม่ถูกต้อง');
-    return false;
+  pendingAdminPage = page || 'admin';
+  openLoginModal();
+  return false;
+}
+
+function setAdminState(on){
+  isAdmin = !!on;
+  const btn = document.getElementById('nav-logout');
+  if(btn) btn.classList.toggle('hidden', !isAdmin);
+}
+
+function openLoginModal(){
+  const msg = document.getElementById('loginMessage');
+  if(msg) msg.innerHTML = '';
+  const pw = document.getElementById('loginPassword');
+  if(pw) pw.value = '';
+  openModal('loginModal');
+  setTimeout(() => {
+    const el = document.getElementById('loginEmail');
+    if(el) el.focus();
+  }, 50);
+}
+
+// ตรวจกับฐานข้อมูลว่าอีเมลนี้อยู่ในรายชื่อแอดมินจริง (ฟังก์ชัน is_admin ใน secure_rls.sql)
+// การป้องกันจริงอยู่ที่ RLS ฝั่งฐานข้อมูล ส่วนนี้แค่ช่วยไม่ให้แสดงเมนูแอดมินให้คนที่ไม่ใช่แอดมิน
+async function verifyAdmin(){
+  try{
+    const { data, error } = await supabaseClient.rpc('is_admin');
+    if(error){
+      console.warn('is_admin() ตรวจสอบไม่ได้ (ยังไม่ได้รัน secure_rls.sql?):', error.message);
+      return true;
+    }
+    return data === true;
+  }catch(e){
+    console.warn(e);
+    return true;
   }
-  isAdmin = true;
-  return true;
+}
+
+async function initAuth(){
+  if(!supabaseReady || !supabaseClient) return;
+  try{
+    const { data } = await supabaseClient.auth.getSession();
+    if(data?.session){
+      setAdminState(await verifyAdmin());
+    }
+
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      // ออกจากระบบ / เซสชันหมดอายุ -> ปิดสิทธิ์แอดมินและพากลับหน้าแรก
+      if(!session){
+        setAdminState(false);
+        const adminPage = document.getElementById('page-admin');
+        const reqPage = document.getElementById('page-requests');
+        const onProtected = (adminPage && !adminPage.classList.contains('hidden')) ||
+                            (reqPage && !reqPage.classList.contains('hidden'));
+        if(onProtected) showPage('home');
+      }
+    });
+  }catch(err){
+    console.error('initAuth error:', err);
+  }
+}
+
+async function submitLogin(){
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const msg = document.getElementById('loginMessage');
+  const btn = document.getElementById('loginBtn');
+
+  if(!email || !password){
+    msg.innerHTML = '<div class="error">กรุณากรอกอีเมลและรหัสผ่าน</div>';
+    return;
+  }
+  if(!supabaseReady || !supabaseClient){
+    msg.innerHTML = '<div class="error">ยังไม่ได้เชื่อมต่อ Supabase</div>';
+    return;
+  }
+
+  btn.disabled = true;
+  msg.innerHTML = '<div class="notice">กำลังเข้าสู่ระบบ...</div>';
+
+  try{
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if(error) throw error;
+
+    if(!(await verifyAdmin())){
+      await supabaseClient.auth.signOut();
+      throw new Error('บัญชีนี้ไม่มีสิทธิ์ผู้ดูแลระบบ');
+    }
+
+    setAdminState(true);
+    document.getElementById('loginPassword').value = '';
+    closeModal('loginModal');
+
+    const target = pendingAdminPage || 'admin';
+    pendingAdminPage = null;
+    showPage(target);
+  }catch(err){
+    const raw = err?.message || String(err);
+    const text = /invalid login credentials/i.test(raw) ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' : raw;
+    msg.innerHTML = '<div class="error">' + escapeHtml(text) + '</div>';
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+async function adminLogout(){
+  try{ await supabaseClient.auth.signOut(); }catch(e){ console.error(e); }
+  setAdminState(false);
+  showPage('home');
 }
 
 // Data Fetching and Relational Mapping
@@ -1052,6 +1288,7 @@ function buildPaymentOptions(student){
   const feePaid = normalizePaid(student.fee_status);
 
   const options = [];
+  optionsBuiltWithPrices = SHIRT_PRICE + '|' + FEE_PRICE;
 
   if(!shirtPaid) options.push({value:'ค่าเสื้อ', label:`ค่าเสื้อ — ${SHIRT_PRICE} บาท`, amount:SHIRT_PRICE});
   if(!feePaid) options.push({value:'ค่าบำรุง', label:`ค่าบำรุง — ${FEE_PRICE} บาท`, amount:FEE_PRICE});
@@ -1108,6 +1345,14 @@ async function submitSelfPayment(){
 
   if(!file){
     message.innerHTML = '<div class="error">กรุณาแนบสลิปการโอนเงิน</div>';
+    return;
+  }
+
+  // ดึงราคาล่าสุดจากฐานข้อมูลอีกครั้งก่อนส่ง เพื่อไม่ให้ยอดเงินเป็นราคาเก่า
+  const reloaded = await loadSettings();
+  if(reloaded && optionsBuiltWithPrices !== (SHIRT_PRICE + '|' + FEE_PRICE)){
+    buildPaymentOptions(selectedPaymentStudent);
+    message.innerHTML = '<div class="notice">ผู้ดูแลเพิ่งปรับราคา กรุณาเลือกรายการชำระเงินอีกครั้งเพื่อใช้ยอดล่าสุด</div>';
     return;
   }
 
@@ -1304,12 +1549,39 @@ async function rejectCurrentRequest(){
 
 async function updateRequestStatus(requestId, newStatus){
   try{
-    const { error } = await supabaseClient
+    const req = requests.find(r => String(r.id) === String(requestId));
+
+    const { data: updated, error } = await supabaseClient
       .from('payment_requests')
       .update({ status: newStatus })
-      .eq('id', requestId);
+      .eq('id', requestId)
+      .select();
 
     if(error) throw error;
+    // RLS ที่บล็อกการ update จะไม่ error แต่คืนแถวว่าง จึงต้องตรวจเอง
+    if(!updated || !updated.length) throw new Error(NO_PERMISSION_MSG);
+
+    // อนุมัติแล้ว -> อัปเดตสถานะการชำระของนักเรียนให้ตรงกัน (หน้าแรกอ่านจากตรงนี้)
+    if(newStatus === 'อนุมัติ' && req){
+      const type = String(req.payment_type || '');
+      const patch = {};
+      if(type.includes('ค่าเสื้อ')) patch.shirt_status = 'ชำระแล้ว';
+      if(type.includes('ค่าบำรุง')) patch.fee_status = 'ชำระแล้ว';
+
+      if(Object.keys(patch).length){
+        const { data: studentRows, error: studentError } = await supabaseClient
+          .from('sports_students')
+          .update(patch)
+          .eq('id', req.student_id)
+          .select();
+
+        if(studentError || !studentRows || !studentRows.length){
+          // ย้อนสถานะรายการกลับ เพื่อไม่ให้ข้อมูลสองตารางไม่ตรงกัน
+          await supabaseClient.from('payment_requests').update({ status: 'รอตรวจสอบ' }).eq('id', requestId);
+          throw studentError || new Error('อัปเดตสถานะการชำระของนักเรียนไม่สำเร็จ จึงยังไม่อนุมัติรายการนี้');
+        }
+      }
+    }
 
     closeModal('requestModal');
     currentRequest = null;
@@ -1425,15 +1697,15 @@ async function saveStudent(){
       fee_status: feeStatus
     };
 
-    let error;
-
     if(id){
-      ({error} = await supabaseClient.from('sports_students').update(payload).eq('id', id));
+      const { data: rows, error } = await supabaseClient
+        .from('sports_students').update(payload).eq('id', id).select();
+      if(error) throw error;
+      if(!rows || !rows.length) throw new Error(NO_PERMISSION_MSG);
     }else{
-      ({error} = await supabaseClient.from('sports_students').insert([payload]));
+      const { error } = await supabaseClient.from('sports_students').insert([payload]);
+      if(error) throw error;
     }
-
-    if(error) throw error;
 
     closeModal('studentModal');
     await loadData();
@@ -1452,9 +1724,11 @@ async function deleteStudent(id){
   if(!confirm(`ต้องการลบนักเรียน "${s.student_name}" ใช่หรือไม่?`)) return;
 
   try{
-    const { error } = await supabaseClient.from('sports_students').delete().eq('id', id);
+    const { data: rows, error } = await supabaseClient
+      .from('sports_students').delete().eq('id', id).select();
 
     if(error) throw error;
+    if(!rows || !rows.length) throw new Error(NO_PERMISSION_MSG);
 
     await loadData();
     alert('ลบข้อมูลเรียบร้อยแล้ว');
@@ -1529,7 +1803,7 @@ async function importStudents(){
 }
 
 // Utility Functions
-function savePrices(){
+async function savePrices(){
   const shirt = Number(document.getElementById('shirtPriceSetting').value);
   const fee = Number(document.getElementById('feePriceSetting').value);
 
@@ -1538,14 +1812,19 @@ function savePrices(){
     return;
   }
 
-  SHIRT_PRICE = shirt;
-  FEE_PRICE = fee;
+  try{
+    await saveSettingsToDb({ shirt_price: shirt, fee_price: fee });
 
-  localStorage.setItem('np404_shirt_price', String(SHIRT_PRICE));
-  localStorage.setItem('np404_fee_price', String(FEE_PRICE));
-
-  updatePriceDisplay();
-  alert('บันทึกราคาสำเร็จ');
+    // อ่านกลับจากฐานข้อมูลเพื่อยืนยันว่าบันทึกเข้าจริง
+    const ok = await loadSettings();
+    if(!ok || SHIRT_PRICE !== shirt || FEE_PRICE !== fee){
+      throw new Error('บันทึกแล้วแต่อ่านค่ากลับจากฐานข้อมูลไม่ตรงกัน ' + (settingsLastError || ''));
+    }
+    alert('บันทึกราคาสำเร็จ (ทุกเครื่องจะเห็นราคาใหม่)');
+  }catch(err){
+    console.error(err);
+    alert('บันทึกราคาไม่สำเร็จ: ' + settingsErrorText(err));
+  }
 }
 
 function updatePriceDisplay(){
@@ -1559,23 +1838,33 @@ function updatePriceDisplay(){
 
   const shirtInput = document.getElementById('shirtPriceSetting');
   const feeInput = document.getElementById('feePriceSetting');
-  if(shirtInput) shirtInput.value = SHIRT_PRICE;
-  if(feeInput) feeInput.value = FEE_PRICE;
+  if(shirtInput && document.activeElement !== shirtInput) shirtInput.value = SHIRT_PRICE;
+  if(feeInput && document.activeElement !== feeInput) feeInput.value = FEE_PRICE;
 }
 
-function saveBankInfo(){
-  BANK_NAME = document.getElementById('bankNameSetting').value.trim();
-  BANK_LOGO = document.getElementById('bankLogoSetting').value.trim();
-  ACCOUNT_NAME = document.getElementById('accountNameSetting').value.trim();
-  ACCOUNT_NUMBER = document.getElementById('accountNumberSetting').value.trim();
+async function saveBankInfo(){
+  const bankName = document.getElementById('bankNameSetting').value.trim();
+  const bankLogo = document.getElementById('bankLogoSetting').value.trim();
+  const accountName = document.getElementById('accountNameSetting').value.trim();
+  const accountNumber = document.getElementById('accountNumberSetting').value.trim();
 
-  localStorage.setItem('np404_bank_name', BANK_NAME);
-  localStorage.setItem('np404_bank_logo', BANK_LOGO);
-  localStorage.setItem('np404_account_name', ACCOUNT_NAME);
-  localStorage.setItem('np404_account_number', ACCOUNT_NUMBER);
+  try{
+    await saveSettingsToDb({
+      bank_name: bankName,
+      bank_logo: bankLogo,
+      account_name: accountName,
+      account_number: accountNumber
+    });
 
-  updateBankDisplay();
-  alert('บันทึกข้อมูลบัญชีเรียบร้อยแล้ว');
+    const ok = await loadSettings();
+    if(!ok || ACCOUNT_NUMBER !== accountNumber || ACCOUNT_NAME !== accountName){
+      throw new Error('บันทึกแล้วแต่อ่านค่ากลับจากฐานข้อมูลไม่ตรงกัน ' + (settingsLastError || ''));
+    }
+    alert('บันทึกข้อมูลบัญชีเรียบร้อยแล้ว (ทุกเครื่องจะเห็นข้อมูลใหม่)');
+  }catch(err){
+    console.error(err);
+    alert('บันทึกข้อมูลบัญชีไม่สำเร็จ: ' + settingsErrorText(err));
+  }
 }
 
 function updateBankDisplay(){
@@ -1607,10 +1896,10 @@ function updateBankDisplay(){
   const accountNameInput = document.getElementById('accountNameSetting');
   const accountNumberInput = document.getElementById('accountNumberSetting');
 
-  if(bankNameInput) bankNameInput.value = BANK_NAME;
-  if(bankLogoInput) bankLogoInput.value = BANK_LOGO;
-  if(accountNameInput) accountNameInput.value = ACCOUNT_NAME;
-  if(accountNumberInput) accountNumberInput.value = ACCOUNT_NUMBER;
+  if(bankNameInput && document.activeElement !== bankNameInput) bankNameInput.value = BANK_NAME;
+  if(bankLogoInput && document.activeElement !== bankLogoInput) bankLogoInput.value = BANK_LOGO;
+  if(accountNameInput && document.activeElement !== accountNameInput) accountNameInput.value = ACCOUNT_NAME;
+  if(accountNumberInput && document.activeElement !== accountNumberInput) accountNumberInput.value = ACCOUNT_NUMBER;
 }
 
 function formatAccountNumber(value){
