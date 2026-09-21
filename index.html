@@ -728,16 +728,19 @@ const SUPABASE_URL = 'https://aefzegkgfwszuiznihsk.supabase.co';
 const SUPABASE_KEY = 'Sb_publishable_Z1zogpI9qqUlegxG816ncQ_eHeaiFvr';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const ADMIN_PASSWORD = '123456';
-const PROMPTPAY = '0614417784';
+// IMPORTANT: ใช้ publishable key เท่านั้นในหน้าเว็บ
+// อย่าใส่ service_role/secret key ลงใน HTML
+const PROMPTPAY = '';
 
-let SHIRT_PRICE = Number(localStorage.getItem('np404_shirt_price') || 250);
-let FEE_PRICE = Number(localStorage.getItem('np404_fee_price') || 100);
+let SHIRT_PRICE = 250;
+let FEE_PRICE = 100;
 
-let BANK_NAME = localStorage.getItem('np404_bank_name') || 'ธนาคาร';
-let BANK_LOGO = localStorage.getItem('np404_bank_logo') || '';
-let ACCOUNT_NAME = localStorage.getItem('np404_account_name') || '';
-let ACCOUNT_NUMBER = localStorage.getItem('np404_account_number') || '';
+let BANK_NAME = 'ธนาคาร';
+let BANK_LOGO = '';
+let ACCOUNT_NAME = '';
+let ACCOUNT_NUMBER = '';
+
+let systemSettings = {};
 
 let students = [];
 let allStudents = [];
@@ -752,9 +755,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadData();
 });
 
-function showPage(page){
+async function showPage(page){
   if(page === 'requests' || page === 'admin'){
-    if(!requireAdmin()) return;
+    if(!(await requireAdmin())) return;
   }
 
   document.querySelectorAll('[id^="page-"]').forEach(el => el.classList.add('hidden'));
@@ -779,13 +782,21 @@ function showPage(page){
   }
 }
 
-function requireAdmin(){
+async function requireAdmin(){
   if(isAdmin) return true;
+
+  const configured = String(systemSettings.admin_password || '').trim();
+  if(!configured){
+    alert('ยังไม่ได้ตั้งรหัสผู้ดูแลระบบใน Supabase: system_settings');
+    return false;
+  }
+
   const pass = prompt('กรุณาใส่รหัสผู้ดูแลระบบ');
-  if(pass !== ADMIN_PASSWORD){
+  if(pass !== configured){
     alert('รหัสผ่านไม่ถูกต้อง');
     return false;
   }
+
   isAdmin = true;
   return true;
 }
@@ -796,33 +807,39 @@ async function loadData(){
   if(grid) grid.innerHTML = '<div class="loading">กำลังโหลดข้อมูล...</div>';
 
   try{
-    // Fetch Sports Students
-    const { data: studentData, error: studentError } = await supabaseClient
-      .from('sports_students')
-      .select('*')
-      .order('student_number', {ascending:true});
-
-    if(studentError) throw studentError;
-
-    // Fetch Payment Requests with Relation
-    const { data: requestData, error: requestError } = await supabaseClient
-      .from('payment_requests')
-      .select(`
+    const [{data: studentData, error: studentError},
+           {data: requestData, error: requestError},
+           {data: settingData, error: settingError}] = await Promise.all([
+      supabaseClient.from('sports_students').select('*').order('student_number', {ascending:true}),
+      supabaseClient.from('payment_requests').select(`
         *,
         sports_students (
           student_number,
           student_name,
           class_name
         )
-      `)
-      .order('created_at', {ascending:false});
+      `).order('created_at', {ascending:false}),
+      supabaseClient.from('system_settings').select('key,value')
+    ]);
 
-    if(requestError) throw requestError;
+    if(studentError) throw new Error('โหลดนักเรียนไม่ได้: ' + studentError.message);
+    if(requestError) throw new Error('โหลดรายการชำระไม่ได้: ' + requestError.message);
+    if(settingError) throw new Error('โหลดการตั้งค่าไม่ได้: ' + settingError.message);
 
     allStudents = studentData || [];
     requests = requestData || [];
 
-    // Map relations and check latest slips
+    systemSettings = Object.fromEntries(
+      (settingData || []).map(x => [String(x.key), x.value])
+    );
+
+    SHIRT_PRICE = Number(systemSettings.shirt_price ?? 250);
+    FEE_PRICE = Number(systemSettings.fee_price ?? 100);
+    BANK_NAME = String(systemSettings.bank_name ?? 'ธนาคาร');
+    BANK_LOGO = String(systemSettings.bank_logo ?? '');
+    ACCOUNT_NAME = String(systemSettings.account_name ?? '');
+    ACCOUNT_NUMBER = String(systemSettings.account_number ?? '');
+
     students = allStudents.map(student => {
       const approved = requests
         .filter(r => String(r.student_id) === String(student.id) && r.status === 'อนุมัติ')
@@ -838,6 +855,8 @@ async function loadData(){
       };
     });
 
+    updatePriceDisplay();
+    updateBankDisplay();
     renderData();
     updateStats();
     renderAdminStudents();
@@ -845,7 +864,8 @@ async function loadData(){
   }catch(err){
     console.error('Data Loading Error:', err);
     if(grid){
-      grid.innerHTML = '<div class="card error">โหลดข้อมูลไม่สำเร็จ: ' + escapeHtml(err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูล') + '</div>';
+      grid.innerHTML = '<div class="card error">โหลดข้อมูลไม่สำเร็จ: ' +
+        escapeHtml(err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูล') + '</div>';
     }
   }
 }
@@ -1051,12 +1071,14 @@ async function submitSelfPayment(){
         .upload(filePath, file, { upsert: true, contentType: file.type || 'image/jpeg' });
 
       if(uploadError){
-        console.warn('Storage Upload Error:', uploadError);
-        // Fallback or warning if RLS policies block file upload
-      } else {
-        const { data: publicData } = supabaseClient.storage.from('payment-slips').getPublicUrl(filePath);
-        slipUrl = publicData?.publicUrl || '';
+        throw new Error('อัปโหลดสลิปไม่สำเร็จ: ' + uploadError.message);
       }
+
+      const { data: publicData } =
+        supabaseClient.storage.from('payment-slips').getPublicUrl(filePath);
+
+      slipUrl = publicData?.publicUrl || '';
+      if(!slipUrl) throw new Error('สร้าง URL สลิปไม่สำเร็จ');
     }
 
     // Insert Request into Supabase Database
@@ -1216,12 +1238,38 @@ async function rejectCurrentRequest(){
 
 async function updateRequestStatus(requestId, newStatus){
   try{
-    const { error } = await supabaseClient
+    const req = requests.find(r => String(r.id) === String(requestId));
+    if(!req) throw new Error('ไม่พบรายการชำระเงิน');
+
+    const { error: requestError } = await supabaseClient
       .from('payment_requests')
-      .update({ status: newStatus })
+      .update({
+        status: newStatus,
+        reviewed_at: new Date().toISOString()
+      })
       .eq('id', requestId);
 
-    if(error) throw error;
+    if(requestError) throw requestError;
+
+    // เมื่ออนุมัติ จะอัปเดตสถานะนักเรียนตามรายการที่ชำระ
+    if(newStatus === 'อนุมัติ'){
+      const patch = {};
+      if(req.payment_type === 'ค่าเสื้อ') patch.shirt_status = 'ชำระแล้ว';
+      if(req.payment_type === 'ค่าบำรุง') patch.fee_status = 'ชำระแล้ว';
+      if(req.payment_type === 'ค่าเสื้อ+ค่าบำรุง'){
+        patch.shirt_status = 'ชำระแล้ว';
+        patch.fee_status = 'ชำระแล้ว';
+      }
+
+      if(Object.keys(patch).length){
+        const { error: studentError } = await supabaseClient
+          .from('sports_students')
+          .update(patch)
+          .eq('id', req.student_id);
+
+        if(studentError) throw studentError;
+      }
+    }
 
     closeModal('requestModal');
     currentRequest = null;
@@ -1436,12 +1484,26 @@ async function importStudents(){
 
   }catch(err){
     console.error(err);
-    msg.innerHTML = '<div class="error">นำเข้าไม่สำเร็จ: ' + escapeHtml(err.message || 'เกิดข้อผิดพลาด');
+    msg.innerHTML = '<div class="error">นำเข้าไม่สำเร็จ: ' +
+      escapeHtml(err.message || 'เกิดข้อผิดพลาด') + '</div>';
   }
 }
 
 // Utility Functions
-function savePrices(){
+async function saveSetting(key, value){
+  const { error } = await supabaseClient
+    .from('system_settings')
+    .upsert({
+      key,
+      value: String(value ?? ''),
+      updated_at: new Date().toISOString()
+    }, {onConflict:'key'});
+
+  if(error) throw error;
+  systemSettings[key] = String(value ?? '');
+}
+
+async function savePrices(){
   const shirt = Number(document.getElementById('shirtPriceSetting').value);
   const fee = Number(document.getElementById('feePriceSetting').value);
 
@@ -1450,14 +1512,19 @@ function savePrices(){
     return;
   }
 
-  SHIRT_PRICE = shirt;
-  FEE_PRICE = fee;
+  try{
+    await Promise.all([
+      saveSetting('shirt_price', shirt),
+      saveSetting('fee_price', fee)
+    ]);
 
-  localStorage.setItem('np404_shirt_price', String(SHIRT_PRICE));
-  localStorage.setItem('np404_fee_price', String(FEE_PRICE));
-
-  updatePriceDisplay();
-  alert('บันทึกราคาสำเร็จ');
+    SHIRT_PRICE = shirt;
+    FEE_PRICE = fee;
+    updatePriceDisplay();
+    alert('บันทึกราคาลง Supabase เรียบร้อยแล้ว');
+  }catch(err){
+    alert('บันทึกราคาไม่สำเร็จ: ' + (err.message || 'เกิดข้อผิดพลาด'));
+  }
 }
 
 function updatePriceDisplay(){
@@ -1475,19 +1542,29 @@ function updatePriceDisplay(){
   if(feeInput) feeInput.value = FEE_PRICE;
 }
 
-function saveBankInfo(){
-  BANK_NAME = document.getElementById('bankNameSetting').value.trim();
-  BANK_LOGO = document.getElementById('bankLogoSetting').value.trim();
-  ACCOUNT_NAME = document.getElementById('accountNameSetting').value.trim();
-  ACCOUNT_NUMBER = document.getElementById('accountNumberSetting').value.trim();
+async function saveBankInfo(){
+  const values = {
+    bank_name: document.getElementById('bankNameSetting').value.trim(),
+    bank_logo: document.getElementById('bankLogoSetting').value.trim(),
+    account_name: document.getElementById('accountNameSetting').value.trim(),
+    account_number: document.getElementById('accountNumberSetting').value.trim()
+  };
 
-  localStorage.setItem('np404_bank_name', BANK_NAME);
-  localStorage.setItem('np404_bank_logo', BANK_LOGO);
-  localStorage.setItem('np404_account_name', ACCOUNT_NAME);
-  localStorage.setItem('np404_account_number', ACCOUNT_NUMBER);
+  try{
+    await Promise.all(
+      Object.entries(values).map(([key, value]) => saveSetting(key, value))
+    );
 
-  updateBankDisplay();
-  alert('บันทึกข้อมูลบัญชีเรียบร้อยแล้ว');
+    BANK_NAME = values.bank_name;
+    BANK_LOGO = values.bank_logo;
+    ACCOUNT_NAME = values.account_name;
+    ACCOUNT_NUMBER = values.account_number;
+
+    updateBankDisplay();
+    alert('บันทึกข้อมูลบัญชีลง Supabase เรียบร้อยแล้ว');
+  }catch(err){
+    alert('บันทึกข้อมูลบัญชีไม่สำเร็จ: ' + (err.message || 'เกิดข้อผิดพลาด'));
+  }
 }
 
 function updateBankDisplay(){
