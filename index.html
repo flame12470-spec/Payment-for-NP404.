@@ -34,7 +34,7 @@ body{
   background:var(--bg);
   color:var(--text);
 }
-button,input,select{font:inherit}
+button,input,select,textarea{font:inherit}
 button{cursor:pointer}
 .topbar{
   position:sticky;
@@ -73,6 +73,7 @@ button{cursor:pointer}
   padding:9px 13px;
   border-radius:10px;
   color:#475569;
+  font-weight:500;
 }
 .nav button.active,.nav button:hover{
   background:#dbeafe;
@@ -147,6 +148,7 @@ button{cursor:pointer}
   border-radius:11px;
   padding:10px 14px;
   transition:.2s;
+  font-weight:500;
 }
 .btn:hover{transform:translateY(-1px)}
 .btn.primary{background:var(--primary);color:#fff}
@@ -428,10 +430,10 @@ footer{
       <span>NP-404 • ค่ากีฬาสี</span>
     </div>
     <nav class="nav">
-      <button class="active" onclick="showPage('home',this)">หน้าหลัก</button>
-      <button onclick="showPage('selfPayment',this)">แจ้งชำระเงิน</button>
-      <button onclick="showPage('requests',this)">รายการแจ้งชำระ</button>
-      <button onclick="showPage('admin',this)">จัดการข้อมูล</button>
+      <button id="nav-home" class="active" onclick="showPage('home')">หน้าหลัก</button>
+      <button id="nav-selfPayment" onclick="showPage('selfPayment')">แจ้งชำระเงิน</button>
+      <button id="nav-requests" onclick="showPage('requests')">รายการแจ้งชำระ</button>
+      <button id="nav-admin" onclick="showPage('admin')">จัดการข้อมูล</button>
     </nav>
   </div>
 </header>
@@ -750,18 +752,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadData();
 });
 
-function showPage(page, btn){
+function showPage(page){
+  if(page === 'requests' || page === 'admin'){
+    if(!requireAdmin()) return;
+  }
+
   document.querySelectorAll('[id^="page-"]').forEach(el => el.classList.add('hidden'));
-  document.getElementById('page-' + page).classList.remove('hidden');
+  const target = document.getElementById('page-' + page);
+  if(target) target.classList.remove('hidden');
+
   document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
-  if(btn) btn.classList.add('active');
+  const activeNav = document.getElementById('nav-' + page);
+  if(activeNav) activeNav.classList.add('active');
 
   if(page === 'requests'){
-    if(!requireAdmin()) return;
     renderRequests();
   }
   if(page === 'admin'){
-    if(!requireAdmin()) return;
     updatePriceDisplay();
     updateBankDisplay();
     renderAdminStudents();
@@ -777,7 +784,6 @@ function requireAdmin(){
   const pass = prompt('กรุณาใส่รหัสผู้ดูแลระบบ');
   if(pass !== ADMIN_PASSWORD){
     alert('รหัสผ่านไม่ถูกต้อง');
-    showPage('home', document.querySelector('.nav button'));
     return false;
   }
   isAdmin = true;
@@ -839,7 +845,7 @@ async function loadData(){
   }catch(err){
     console.error('Data Loading Error:', err);
     if(grid){
-      grid.innerHTML = '<div class="card error">โหลดข้อมูลไม่สำเร็จ: ' + escapeHtml(err.message || 'เกิดข้อผิดพลาด') + '</div>';
+      grid.innerHTML = '<div class="card error">โหลดข้อมูลไม่สำเร็จ: ' + escapeHtml(err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูล') + '</div>';
     }
   }
 }
@@ -922,7 +928,7 @@ function searchPaymentStudent(){
   result.innerHTML = `
     <div class="student-results">
       ${matches.map(s => `
-        <button class="student-result" onclick="selectPaymentStudent('${safeJs(String(s.id))}')">
+        <button class="student-result" type="button" onclick="selectPaymentStudent('${safeJs(String(s.id))}')">
           <strong>${escapeHtml(s.student_name || '-')}</strong>
           <span class="meta">เลขที่ ${escapeHtml(s.student_number ?? '-')} • ${escapeHtml(s.class_name || '-')}</span>
         </button>
@@ -1037,14 +1043,17 @@ async function submitSelfPayment(){
     // Upload slip to Supabase Storage Bucket
     if(file){
       const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-      const filePath = `payment-slips/${selectedPaymentStudent.id}_${Date.now()}.${ext}`;
+      const filePath = `slips/${selectedPaymentStudent.id}_${Date.now()}.${ext}`;
 
-      const { error: uploadError } = await supabaseClient
+      const { data: uploadData, error: uploadError } = await supabaseClient
         .storage
         .from('payment-slips')
-        .upload(filePath, file, { upsert: false, contentType: file.type || 'image/jpeg' });
+        .upload(filePath, file, { upsert: true, contentType: file.type || 'image/jpeg' });
 
-      if(!uploadError){
+      if(uploadError){
+        console.warn('Storage Upload Error:', uploadError);
+        // Fallback or warning if RLS policies block file upload
+      } else {
         const { data: publicData } = supabaseClient.storage.from('payment-slips').getPublicUrl(filePath);
         slipUrl = publicData?.publicUrl || '';
       }
@@ -1071,7 +1080,7 @@ async function submitSelfPayment(){
 
   }catch(err){
     console.error(err);
-    message.innerHTML = '<div class="error">ส่งรายการไม่สำเร็จ: ' + escapeHtml(err.message || 'เกิดข้อผิดพลาด') + '</div>';
+    message.innerHTML = '<div class="error">ส่งรายการไม่สำเร็จ: ' + escapeHtml(err.message || 'เกิดข้อผิดพลาดเกี่ยวกับสิทธิ์การบันทึกข้อมูล (RLS)') + '</div>';
   }
 }
 
@@ -1205,7 +1214,6 @@ async function rejectCurrentRequest(){
   await updateRequestStatus(currentRequest.id, 'ไม่ผ่าน');
 }
 
-// Updating Status with Database Trigger Support
 async function updateRequestStatus(requestId, newStatus){
   try{
     const { error } = await supabaseClient
@@ -1345,7 +1353,7 @@ async function saveStudent(){
 
   }catch(err){
     console.error(err);
-    alert('บันทึกไม่สำเร็จ: ' + (err.message || 'เกิดข้อผิดพลาด'));
+    alert('บันทึกไม่สำเร็จ: ' + (err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล'));
   }
 }
 
@@ -1364,7 +1372,7 @@ async function deleteStudent(id){
     alert('ลบข้อมูลเรียบร้อยแล้ว');
   }catch(err){
     console.error(err);
-    alert('ลบไม่สำเร็จ: ' + (err.message || 'เกิดข้อผิดพลาด'));
+    alert('ลบไม่สำเร็จ: ' + (err.message || 'เกิดข้อผิดพลาดในการลบข้อมูล'));
   }
 }
 
@@ -1428,7 +1436,7 @@ async function importStudents(){
 
   }catch(err){
     console.error(err);
-    msg.innerHTML = '<div class="error">นำเข้าไม่สำเร็จ: ' + escapeHtml(err.message || 'เกิดข้อผิดพลาด'));
+    msg.innerHTML = '<div class="error">นำเข้าไม่สำเร็จ: ' + escapeHtml(err.message || 'เกิดข้อผิดพลาด');
   }
 }
 
@@ -1546,10 +1554,12 @@ function viewSlip(url){
 }
 
 function openModal(id){
-  document.getElementById(id).classList.add('show');
+  const el = document.getElementById(id);
+  if(el) el.classList.add('show');
 }
 function closeModal(id){
-  document.getElementById(id).classList.remove('show');
+  const el = document.getElementById(id);
+  if(el) el.classList.remove('show');
 }
 
 document.querySelectorAll('.modal').forEach(modal => {
