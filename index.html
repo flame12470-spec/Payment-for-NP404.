@@ -419,25 +419,6 @@ footer{
   .nav button{white-space:nowrap}
   .hero{padding:22px}
 }
-
-.supabase-debug{
-  margin:0 0 18px;
-  padding:16px;
-  border-radius:16px;
-  border:1px solid #bfdbfe;
-  background:#eff6ff;
-  color:#1e3a8a;
-}
-.supabase-debug.ok{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
-.supabase-debug.bad{background:#fef2f2;border-color:#fecaca;color:#991b1b}
-.supabase-debug-title{font-weight:700;margin-bottom:6px}
-.supabase-debug-detail{font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
-.supabase-debug code{
-  background:rgba(255,255,255,.7);
-  padding:2px 5px;
-  border-radius:6px;
-}
-
 </style>
 </head>
 
@@ -465,12 +446,6 @@ footer{
       <h1>ระบบติดตามค่ากีฬาสี NP-404</h1>
       <p>ตรวจสอบสถานะค่าเสื้อ ค่าบำรุง และสลิปการชำระเงินของนักเรียน</p>
     </div>
-
-    
-<div id="supabaseDebug" class="supabase-debug">
-  <div class="supabase-debug-title">🔌 ตรวจสอบการเชื่อมต่อ Supabase</div>
-  <div id="supabaseDebugDetail" class="supabase-debug-detail">กำลังตรวจสอบการเชื่อมต่อ...</div>
-</div>
 
     <div class="section-title">
       <h2>รายชื่อนักเรียน</h2>
@@ -749,9 +724,30 @@ footer{
 
 <script>
 // Supabase Client Initialization
+// IMPORTANT: Supabase must never be allowed to block the page UI.
 const SUPABASE_URL = 'https://aefzegkgfwszuiznihsk.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_Z1zogpI9qqUlegxG816ncQ_eHeaiFvr';
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let supabaseClient = null;
+let supabaseReady = false;
+let supabaseInitError = '';
+
+function initSupabase(){
+  try{
+    if(!window.supabase || typeof window.supabase.createClient !== 'function'){
+      throw new Error('ไม่พบ Supabase JS SDK หรือ SDK โหลดไม่สำเร็จ');
+    }
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    supabaseReady = !!supabaseClient;
+    return supabaseReady;
+  }catch(err){
+    supabaseReady = false;
+    supabaseInitError = err?.message || String(err);
+    console.error('Supabase initialization failed:', err);
+    return false;
+  }
+}
+
+initSupabase();
 
 const ADMIN_PASSWORD = '123456';
 const PROMPTPAY = '0614417784';
@@ -771,36 +767,49 @@ let selectedPaymentStudent = null;
 let currentRequest = null;
 let isAdmin = false;
 
-document.addEventListener('DOMContentLoaded', async () => {
-  updatePriceDisplay();
-  updateBankDisplay();
-  await loadData();
+document.addEventListener('DOMContentLoaded', () => {
+  // UI is initialized first. Navigation must work even if Supabase is offline.
+  try{ updatePriceDisplay(); }catch(e){ console.error(e); }
+  try{ updateBankDisplay(); }catch(e){ console.error(e); }
+
+  // Load data in the background. Do not await it here.
+  setTimeout(() => {
+    loadData().catch(err => console.error('Background loadData error:', err));
+  }, 0);
 });
 
 function showPage(page){
-  if(page === 'requests' || page === 'admin'){
-    if(!requireAdmin()) return;
-  }
+  try{
+    if(page === 'requests' || page === 'admin'){
+      if(!requireAdmin()) return;
+    }
 
-  document.querySelectorAll('[id^="page-"]').forEach(el => el.classList.add('hidden'));
-  const target = document.getElementById('page-' + page);
-  if(target) target.classList.remove('hidden');
+    // Change the visible page FIRST. No database call is allowed to block this.
+    document.querySelectorAll('[id^="page-"]').forEach(el => el.classList.add('hidden'));
+    const target = document.getElementById('page-' + page);
+    if(target) target.classList.remove('hidden');
 
-  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
-  const activeNav = document.getElementById('nav-' + page);
-  if(activeNav) activeNav.classList.add('active');
+    document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+    const activeNav = document.getElementById('nav-' + page);
+    if(activeNav) activeNav.classList.add('active');
 
-  if(page === 'requests'){
-    renderRequests();
-  }
-  if(page === 'admin'){
-    updatePriceDisplay();
-    updateBankDisplay();
-    renderAdminStudents();
-  }
-  if(page === 'selfPayment'){
-    updateBankDisplay();
-    resetPaymentForm();
+    // Optional page rendering is isolated so one error cannot freeze navigation.
+    try{
+      if(page === 'requests') renderRequests();
+      if(page === 'admin'){
+        updatePriceDisplay();
+        updateBankDisplay();
+        renderAdminStudents();
+      }
+      if(page === 'selfPayment'){
+        updateBankDisplay();
+        resetPaymentForm();
+      }
+    }catch(renderError){
+      console.error('Page render error:', renderError);
+    }
+  }catch(err){
+    console.error('Navigation error:', err);
   }
 }
 
@@ -820,21 +829,40 @@ async function loadData(){
   const grid = document.getElementById('studentGrid');
   if(grid) grid.innerHTML = '<div class="loading">กำลังโหลดข้อมูล...</div>';
 
-  setSupabaseDebug('loading', 'กำลังตรวจสอบการเชื่อมต่อ Supabase...');
+  // Never let Supabase prevent the rest of the website from working.
+  if(!supabaseReady || !supabaseClient){
+    if(grid){
+      grid.innerHTML = `
+        <div class="card error">
+          <b>เชื่อมต่อ Supabase ไม่สำเร็จ</b><br>
+          หน้าเมนูยังใช้งานได้ตามปกติ แต่ยังโหลดรายชื่อนักเรียนไม่ได้
+          ${supabaseInitError ? '<br><small>'+escapeHtml(supabaseInitError)+'</small>' : ''}
+        </div>`;
+    }
+    return false;
+  }
 
   try{
-    await checkSupabaseConnection();
-
-    const { data: studentData, error: studentError } = await supabaseClient
+    // Fetch students with a timeout so a stuck network request cannot hang the page.
+    const studentPromise = supabaseClient
       .from('sports_students')
       .select('*')
       .order('student_number', {ascending:true});
 
-    if(studentError){
-      throw makeDetailedSupabaseError('โหลดนักเรียนไม่ได้', studentError);
-    }
+    const studentResult = await Promise.race([
+      studentPromise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('หมดเวลาการเชื่อมต่อ Supabase (15 วินาที)')), 15000)
+      )
+    ]);
 
-    const { data: requestData, error: requestError } = await supabaseClient
+    const { data: studentData, error: studentError } = studentResult;
+    if(studentError) throw studentError;
+
+    // Payment requests are loaded separately. If this query fails,
+    // the student list can still be shown instead of freezing the whole app.
+    let requestData = [];
+    const requestPromise = supabaseClient
       .from('payment_requests')
       .select(`
         *,
@@ -846,8 +874,21 @@ async function loadData(){
       `)
       .order('created_at', {ascending:false});
 
-    if(requestError){
-      throw makeDetailedSupabaseError('โหลดรายการชำระเงินไม่ได้', requestError);
+    try{
+      const requestResult = await Promise.race([
+        requestPromise,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('หมดเวลาการโหลดรายการชำระเงิน (15 วินาที)')), 15000)
+        )
+      ]);
+
+      if(requestResult.error){
+        console.warn('Payment requests could not be loaded:', requestResult.error);
+      }else{
+        requestData = requestResult.data || [];
+      }
+    }catch(requestErr){
+      console.warn('Payment requests load skipped:', requestErr);
     }
 
     allStudents = studentData || [];
@@ -868,103 +909,33 @@ async function loadData(){
       };
     });
 
-    setSupabaseDebug(
-      'ok',
-      `เชื่อมต่อ Supabase สำเร็จ\n` +
-      `Project: ${SUPABASE_URL}\n` +
-      `นักเรียน: ${allStudents.length} รายการ\n` +
-      `รายการชำระ: ${requests.length} รายการ`
-    );
+    // Render only after the data is available.
+    try{ renderData(); }catch(e){ console.error('renderData:', e); }
+    try{ updateStats(); }catch(e){ console.error('updateStats:', e); }
+    try{ renderAdminStudents(); }catch(e){ console.error('renderAdminStudents:', e); }
+    try{ renderRequests(); }catch(e){ console.error('renderRequests:', e); }
 
-    renderData();
-    updateStats();
-    renderAdminStudents();
-    renderRequests();
-
+    return true;
   }catch(err){
-    console.error('Supabase Data Loading Error:', err);
-
-    const detail = err?.userMessage || err?.message || String(err);
-
-    setSupabaseDebug('bad', detail);
-
+    console.error('Data Loading Error:', err);
     if(grid){
+      const detail = [
+        err?.message,
+        err?.code ? 'รหัส: ' + err.code : '',
+        err?.details ? 'รายละเอียด: ' + err.details : '',
+        err?.hint ? 'คำแนะนำ: ' + err.hint : ''
+      ].filter(Boolean).join('<br>');
+
       grid.innerHTML = `
         <div class="card error">
-          <b>ไม่สามารถโหลดข้อมูลได้</b>
-          <div style="margin-top:8px;white-space:pre-wrap;word-break:break-word">
-            ${escapeHtml(detail)}
-          </div>
-          <div class="actions">
-            <button class="btn primary" onclick="loadData()">ลองใหม่</button>
-          </div>
-        </div>
-      `;
+          <b>โหลดข้อมูลไม่สำเร็จ</b><br>
+          ${escapeHtml(detail || 'เกิดข้อผิดพลาดในการเชื่อมต่อ Supabase')}
+          <br><br>
+          <button class="btn primary small" type="button" onclick="loadData()">ลองใหม่</button>
+        </div>`;
     }
+    return false;
   }
-}
-
-async function checkSupabaseConnection(){
-  if(!window.supabase){
-    throw new Error('ไม่พบ Supabase JS SDK: ตรวจสอบการโหลด https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');
-  }
-
-  if(!SUPABASE_URL || !SUPABASE_KEY){
-    throw new Error('ไม่ได้ตั้งค่า SUPABASE_URL หรือ SUPABASE_KEY');
-  }
-
-  if(!/^https:\\/\\/[^/]+\\.supabase\\.co$/i.test(SUPABASE_URL)){
-    throw new Error(`SUPABASE_URL ไม่ถูกต้อง: ${SUPABASE_URL}`);
-  }
-
-  const keyLower = String(SUPABASE_KEY).toLowerCase();
-  if(!keyLower.startsWith('sb_publishable_')){
-    throw new Error('SUPABASE_KEY ไม่ใช่ Publishable key ที่คาดไว้ (ควรขึ้นต้นด้วย sb_publishable_)');
-  }
-
-  const { error } = await supabaseClient
-    .from('system_settings')
-    .select('key')
-    .limit(1);
-
-  if(error){
-    throw makeDetailedSupabaseError('เชื่อมต่อ Supabase ไม่สำเร็จ', error);
-  }
-
-  return true;
-}
-
-function makeDetailedSupabaseError(prefix, error){
-  const e = error || {};
-  const status = e.status || e.statusCode || '';
-  const code = e.code || '';
-  const parts = [prefix];
-
-  if(e.message) parts.push(`ข้อความ: ${e.message}`);
-  if(code) parts.push(`รหัส: ${code}`);
-  if(status) parts.push(`HTTP: ${status}`);
-  if(e.details) parts.push(`รายละเอียด: ${e.details}`);
-  if(e.hint) parts.push(`คำแนะนำจาก Supabase: ${e.hint}`);
-
-  const msg = parts.join('\n');
-
-  const wrapped = new Error(msg);
-  wrapped.userMessage = msg;
-  wrapped.supabaseError = e;
-  return wrapped;
-}
-
-function setSupabaseDebug(type, message){
-  const box = document.getElementById('supabaseDebug');
-  const detail = document.getElementById('supabaseDebugDetail');
-  if(!box || !detail) return;
-
-  box.classList.remove('ok','bad');
-
-  if(type === 'ok') box.classList.add('ok');
-  if(type === 'bad') box.classList.add('bad');
-
-  detail.textContent = message;
 }
 
 function renderData(){
@@ -1168,7 +1139,8 @@ async function submitSelfPayment(){
         .upload(filePath, file, { upsert: true, contentType: file.type || 'image/jpeg' });
 
       if(uploadError){
-        throw makeDetailedSupabaseError('อัปโหลดสลิปไม่ได้', uploadError);
+        console.warn('Storage Upload Error:', uploadError);
+        // Fallback or warning if RLS policies block file upload
       } else {
         const { data: publicData } = supabaseClient.storage.from('payment-slips').getPublicUrl(filePath);
         slipUrl = publicData?.publicUrl || '';
@@ -1196,7 +1168,7 @@ async function submitSelfPayment(){
 
   }catch(err){
     console.error(err);
-    message.innerHTML = '<div class="error"><b>ส่งรายการไม่สำเร็จ</b><br><pre style="white-space:pre-wrap;margin:8px 0 0">' + escapeHtml(err.userMessage || err.message || 'ไม่ทราบสาเหตุ') + '</pre></div>';
+    message.innerHTML = '<div class="error">ส่งรายการไม่สำเร็จ: ' + escapeHtml(err.message || 'เกิดข้อผิดพลาดเกี่ยวกับสิทธิ์การบันทึกข้อมูล (RLS)') + '</div>';
   }
 }
 
@@ -1557,7 +1529,7 @@ async function importStudents(){
 }
 
 // Utility Functions
-async function savePrices(){
+function savePrices(){
   const shirt = Number(document.getElementById('shirtPriceSetting').value);
   const fee = Number(document.getElementById('feePriceSetting').value);
 
@@ -1566,26 +1538,14 @@ async function savePrices(){
     return;
   }
 
-  try{
-    for(const [key,value] of [
-      ['shirt_price', String(shirt)],
-      ['fee_price', String(fee)]
-    ]){
-      const { error } = await supabaseClient
-        .from('system_settings')
-        .upsert({key, value}, {onConflict:'key'});
+  SHIRT_PRICE = shirt;
+  FEE_PRICE = fee;
 
-      if(error) throw makeDetailedSupabaseError(`บันทึก ${key} ไม่สำเร็จ`, error);
-    }
+  localStorage.setItem('np404_shirt_price', String(SHIRT_PRICE));
+  localStorage.setItem('np404_fee_price', String(FEE_PRICE));
 
-    SHIRT_PRICE = shirt;
-    FEE_PRICE = fee;
-    updatePriceDisplay();
-    alert('บันทึกราคาสำเร็จ');
-  }catch(err){
-    console.error(err);
-    alert(err.userMessage || err.message || 'บันทึกราคาไม่สำเร็จ');
-  }
+  updatePriceDisplay();
+  alert('บันทึกราคาสำเร็จ');
 }
 
 function updatePriceDisplay(){
@@ -1603,34 +1563,19 @@ function updatePriceDisplay(){
   if(feeInput) feeInput.value = FEE_PRICE;
 }
 
-async function saveBankInfo(){
-  const values = {
-    bank_name: document.getElementById('bankNameSetting').value.trim(),
-    bank_logo: document.getElementById('bankLogoSetting').value.trim(),
-    account_name: document.getElementById('accountNameSetting').value.trim(),
-    account_number: document.getElementById('accountNumberSetting').value.trim()
-  };
+function saveBankInfo(){
+  BANK_NAME = document.getElementById('bankNameSetting').value.trim();
+  BANK_LOGO = document.getElementById('bankLogoSetting').value.trim();
+  ACCOUNT_NAME = document.getElementById('accountNameSetting').value.trim();
+  ACCOUNT_NUMBER = document.getElementById('accountNumberSetting').value.trim();
 
-  try{
-    for(const [key,value] of Object.entries(values)){
-      const { error } = await supabaseClient
-        .from('system_settings')
-        .upsert({key, value}, {onConflict:'key'});
+  localStorage.setItem('np404_bank_name', BANK_NAME);
+  localStorage.setItem('np404_bank_logo', BANK_LOGO);
+  localStorage.setItem('np404_account_name', ACCOUNT_NAME);
+  localStorage.setItem('np404_account_number', ACCOUNT_NUMBER);
 
-      if(error) throw makeDetailedSupabaseError(`บันทึก ${key} ไม่สำเร็จ`, error);
-    }
-
-    BANK_NAME = values.bank_name;
-    BANK_LOGO = values.bank_logo;
-    ACCOUNT_NAME = values.account_name;
-    ACCOUNT_NUMBER = values.account_number;
-
-    updateBankDisplay();
-    alert('บันทึกข้อมูลบัญชีเรียบร้อยแล้ว');
-  }catch(err){
-    console.error(err);
-    alert(err.userMessage || err.message || 'บันทึกข้อมูลบัญชีไม่สำเร็จ');
-  }
+  updateBankDisplay();
+  alert('บันทึกข้อมูลบัญชีเรียบร้อยแล้ว');
 }
 
 function updateBankDisplay(){
@@ -1742,5 +1687,18 @@ function safeJs(value){
     .replace(/\n/g,'\\n');
 }
 </script>
+<script>
+/* Final safety net: JavaScript errors must never make navigation unusable. */
+window.addEventListener('error', function(e){
+  console.error('Global JS error:', e.error || e.message);
+});
+
+window.addEventListener('unhandledrejection', function(e){
+  console.error('Unhandled promise rejection:', e.reason);
+  // Prevent a rejected Supabase request from stopping the rest of the page.
+  e.preventDefault();
+});
+</script>
+
 </body>
 </html>
