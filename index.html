@@ -468,6 +468,10 @@ footer{
       <p>ค้นหาชื่อของตัวเองจากรายชื่อ แล้วระบบจะนำเลขที่และห้องมาให้อัตโนมัติ</p>
     </div>
 
+    <div id="transferClosedNotice" class="error hidden" style="margin-bottom:14px">
+      🔴 ขณะนี้ปิดรับการแจ้งโอนเงินชั่วคราว กรุณาติดต่อผู้ดูแลระบบ หรือลองใหม่อีกครั้งภายหลัง
+    </div>
+
     <div class="card">
       <div class="bank-card">
         <div class="bank-head">
@@ -523,7 +527,7 @@ footer{
       </div>
 
       <div class="actions">
-        <button class="btn primary" onclick="submitSelfPayment()">ส่งหลักฐานการชำระเงิน</button>
+        <button id="submitPaymentBtn" class="btn primary" onclick="submitSelfPayment()">ส่งหลักฐานการชำระเงิน</button>
         <button class="btn gray" onclick="resetPaymentForm()">ล้างข้อมูล</button>
       </div>
 
@@ -602,9 +606,13 @@ footer{
     <div class="card" style="margin-top:16px">
       <div class="section-title" style="margin-top:0">
         <h2 style="font-size:19px">ข้อมูลบัญชีรับเงิน</h2>
+        <span id="transferStatusBadge" class="badge success">🟢 กำลังเปิดรับโอนเงิน</span>
       </div>
       <div class="notice">
         ข้อมูลนี้จะแสดงในหน้า “แจ้งชำระเงิน” พร้อมปุ่มคัดลอกเลขบัญชี
+      </div>
+      <div class="notice">
+        หากปิดการรับโอนเงิน นักเรียนจะไม่สามารถกรอกแบบฟอร์มแจ้งชำระเงินได้จนกว่าจะเปิดอีกครั้ง
       </div>
 
       <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
@@ -629,7 +637,10 @@ footer{
         </div>
       </div>
 
-      <button class="btn primary" onclick="saveBankInfo()">บันทึกข้อมูลบัญชี</button>
+      <div class="actions" style="margin-top:0">
+        <button class="btn primary" onclick="saveBankInfo()">บันทึกข้อมูลบัญชี</button>
+        <button id="toggleTransferBtn" class="btn danger" onclick="toggleTransferStatus()">⛔ ปิดการรับโอนเงิน</button>
+      </div>
     </div>
 
     <div class="card" style="margin-top:16px">
@@ -826,6 +837,7 @@ let BANK_NAME = cacheGet('np404_bank_name', '') || 'ธนาคาร';
 let BANK_LOGO = cacheGet('np404_bank_logo', '');
 let ACCOUNT_NAME = cacheGet('np404_account_name', '');
 let ACCOUNT_NUMBER = cacheGet('np404_account_number', '');
+let TRANSFER_ENABLED = cacheGet('np404_transfer_enabled', 'true') !== 'false';
 
 let settingsLastError = '';
 let settingsLastLoadedAt = 0;
@@ -842,6 +854,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // UI is initialized first. Navigation must work even if Supabase is offline.
   try{ updatePriceDisplay(); }catch(e){ console.error(e); }
   try{ updateBankDisplay(); }catch(e){ console.error(e); }
+  try{ updateTransferStatusUI(); }catch(e){ console.error(e); }
 
   // Load data in the background. Do not await it here.
   initAuth();
@@ -889,6 +902,7 @@ function applySettings(map){
   if('bank_logo' in map) BANK_LOGO = map.bank_logo || '';
   if('account_name' in map) ACCOUNT_NAME = map.account_name || '';
   if('account_number' in map) ACCOUNT_NUMBER = map.account_number || '';
+  if('transfer_enabled' in map) TRANSFER_ENABLED = String(map.transfer_enabled) !== 'false';
 
   cacheSet('np404_shirt_price', SHIRT_PRICE);
   cacheSet('np404_fee_price', FEE_PRICE);
@@ -896,9 +910,11 @@ function applySettings(map){
   cacheSet('np404_bank_logo', BANK_LOGO);
   cacheSet('np404_account_name', ACCOUNT_NAME);
   cacheSet('np404_account_number', ACCOUNT_NUMBER);
+  cacheSet('np404_transfer_enabled', TRANSFER_ENABLED);
 
   try{ updatePriceDisplay(); }catch(e){ console.error(e); }
   try{ updateBankDisplay(); }catch(e){ console.error(e); }
+  try{ updateTransferStatusUI(); }catch(e){ console.error(e); }
 }
 
 async function saveSettingsToDb(values){
@@ -949,12 +965,14 @@ function showPage(page){
       if(page === 'admin'){
         updatePriceDisplay();
         updateBankDisplay();
+        updateTransferStatusUI();
         renderAdminStudents();
         updateFinanceStats();
         loadSettings();
       }
       if(page === 'selfPayment'){
         updateBankDisplay();
+        updateTransferStatusUI();
         resetPaymentForm();
         loadSettings();
       }
@@ -1352,6 +1370,11 @@ function resetPaymentForm(){
 async function submitSelfPayment(){
   const message = document.getElementById('paymentMessage');
   message.innerHTML = '';
+
+  if(!TRANSFER_ENABLED){
+    message.innerHTML = '<div class="error">ขณะนี้ปิดรับการแจ้งโอนเงินชั่วคราว กรุณาติดต่อผู้ดูแลระบบ</div>';
+    return;
+  }
 
   if(!selectedPaymentStudent){
     message.innerHTML = '<div class="error">กรุณาค้นหาและเลือกชื่อนักเรียนก่อน</div>';
@@ -2141,6 +2164,52 @@ function updateBankDisplay(){
   if(bankLogoInput && document.activeElement !== bankLogoInput) bankLogoInput.value = BANK_LOGO;
   if(accountNameInput && document.activeElement !== accountNameInput) accountNameInput.value = ACCOUNT_NAME;
   if(accountNumberInput && document.activeElement !== accountNumberInput) accountNumberInput.value = ACCOUNT_NUMBER;
+}
+
+async function toggleTransferStatus(){
+  const next = !TRANSFER_ENABLED;
+  const confirmMsg = next
+    ? 'ยืนยันต้องการเปิดรับโอนเงินอีกครั้งใช่หรือไม่?'
+    : 'ยืนยันต้องการปิดการรับโอนเงินใช่หรือไม่? นักเรียนจะไม่สามารถแจ้งชำระเงินได้จนกว่าจะเปิดอีกครั้ง';
+
+  if(!confirm(confirmMsg)) return;
+
+  try{
+    await saveSettingsToDb({ transfer_enabled: next ? 'true' : 'false' });
+
+    const ok = await loadSettings();
+    if(!ok || TRANSFER_ENABLED !== next){
+      throw new Error('บันทึกแล้วแต่อ่านค่ากลับจากฐานข้อมูลไม่ตรงกัน ' + (settingsLastError || ''));
+    }
+    alert(next ? 'เปิดรับโอนเงินเรียบร้อยแล้ว (ทุกเครื่องจะเห็นการเปลี่ยนแปลงนี้)' : 'ปิดการรับโอนเงินเรียบร้อยแล้ว (ทุกเครื่องจะเห็นการเปลี่ยนแปลงนี้)');
+  }catch(err){
+    console.error(err);
+    alert('เปลี่ยนสถานะไม่สำเร็จ: ' + settingsErrorText(err));
+  }
+}
+
+function updateTransferStatusUI(){
+  const badge = document.getElementById('transferStatusBadge');
+  if(badge){
+    badge.textContent = TRANSFER_ENABLED ? '🟢 กำลังเปิดรับโอนเงิน' : '🔴 ปิดรับโอนเงินอยู่';
+    badge.className = 'badge ' + (TRANSFER_ENABLED ? 'success' : 'danger');
+  }
+
+  const toggleBtn = document.getElementById('toggleTransferBtn');
+  if(toggleBtn){
+    toggleBtn.textContent = TRANSFER_ENABLED ? '⛔ ปิดการรับโอนเงิน' : '✅ เปิดการรับโอนเงิน';
+    toggleBtn.className = 'btn ' + (TRANSFER_ENABLED ? 'danger' : 'success');
+  }
+
+  const notice = document.getElementById('transferClosedNotice');
+  if(notice) notice.classList.toggle('hidden', TRANSFER_ENABLED);
+
+  const submitBtn = document.getElementById('submitPaymentBtn');
+  if(submitBtn) submitBtn.disabled = !TRANSFER_ENABLED;
+
+  document.querySelectorAll('#page-selfPayment input, #page-selfPayment select').forEach(el => {
+    el.disabled = !TRANSFER_ENABLED;
+  });
 }
 
 function formatAccountNumber(value){
