@@ -13,6 +13,9 @@
 <!-- Supabase JS SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+<!-- Export library: Excel (SheetJS). PDF export uses a printable HTML view + browser "Save as PDF" (window.print()), which renders Thai text correctly without needing to embed a special Thai font into a PDF library. -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
 <style>
 *{box-sizing:border-box}
 :root{
@@ -630,6 +633,25 @@ footer{
     </div>
 
     <div class="card" style="margin-top:16px">
+      <div class="section-title" style="margin-top:0">
+        <h2 style="font-size:19px">สรุปการเงิน</h2>
+      </div>
+      <div class="notice">
+        สรุปยอดจากราคาและสถานะการชำระของนักเรียนทั้งหมด (คำนวณสดจากค่าเสื้อ + ค่าบำรุงที่ตั้งไว้ด้านบน)
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="label">ยอดที่จ่ายแล้ว</div><div class="value" id="totalPaidAmount" style="color:var(--green)">0 บาท</div></div>
+        <div class="stat"><div class="label">ยอดที่รอจ่าย (ค้างชำระ)</div><div class="value" id="totalPendingAmount" style="color:var(--red)">0 บาท</div></div>
+        <div class="stat"><div class="label">จ่ายครบแล้ว (คน)</div><div class="value" id="fullyPaidCount">0</div></div>
+        <div class="stat"><div class="label">ยังไม่จ่ายครบ (คน)</div><div class="value" id="notFullyPaidCount">0</div></div>
+      </div>
+      <div class="actions" style="margin-top:0">
+        <button class="btn success" onclick="exportExcel()">📊 ส่งออก Excel</button>
+        <button class="btn danger" onclick="exportPDF()">📄 ส่งออก PDF</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
       <div class="form-group">
         <label>ค้นหานักเรียน</label>
         <input id="adminSearch" class="search" placeholder="ชื่อ / เลขที่ / ห้อง" oninput="renderAdminStudents()">
@@ -928,6 +950,7 @@ function showPage(page){
         updatePriceDisplay();
         updateBankDisplay();
         renderAdminStudents();
+        updateFinanceStats();
         loadSettings();
       }
       if(page === 'selfPayment'){
@@ -1597,6 +1620,223 @@ function updateStats(){
   document.getElementById('totalStudents').textContent = students.length;
   document.getElementById('shirtPaid').textContent = students.filter(s => normalizePaid(s.shirt_status)).length;
   document.getElementById('feePaid').textContent = students.filter(s => normalizePaid(s.fee_status)).length;
+  try{ updateFinanceStats(); }catch(e){ console.error('updateFinanceStats:', e); }
+}
+
+// ---------- Finance summary (ยอดจ่ายแล้ว / ยอดค้างจ่าย / ใครจ่ายแล้ว / ใครยังไม่จ่าย) ----------
+function computeFinanceSummary(){
+  const list = (allStudents && allStudents.length ? allStudents : students) || [];
+
+  let totalPaid = 0;
+  let totalPending = 0;
+  let fullyPaidCount = 0;
+  let notFullyPaidCount = 0;
+
+  const rows = list.map(s => {
+    const shirtPaid = normalizePaid(s.shirt_status);
+    const feePaid = normalizePaid(s.fee_status);
+
+    const paidAmount = (shirtPaid ? SHIRT_PRICE : 0) + (feePaid ? FEE_PRICE : 0);
+    const pendingAmount = (shirtPaid ? 0 : SHIRT_PRICE) + (feePaid ? 0 : FEE_PRICE);
+
+    totalPaid += paidAmount;
+    totalPending += pendingAmount;
+
+    const fullyPaid = shirtPaid && feePaid;
+    if(fullyPaid) fullyPaidCount++; else notFullyPaidCount++;
+
+    let outstanding = [];
+    if(!shirtPaid) outstanding.push('ค่าเสื้อ');
+    if(!feePaid) outstanding.push('ค่าบำรุง');
+
+    return {
+      student_number: s.student_number ?? '-',
+      student_name: s.student_name || '-',
+      class_name: s.class_name || '-',
+      shirt_status: shirtPaid ? 'ชำระแล้ว' : 'ยังไม่ชำระ',
+      fee_status: feePaid ? 'ชำระแล้ว' : 'ยังไม่ชำระ',
+      paid_amount: paidAmount,
+      pending_amount: pendingAmount,
+      fully_paid: fullyPaid,
+      outstanding_text: outstanding.length ? outstanding.join(' + ') : '-'
+    };
+  });
+
+  return { rows, totalPaid, totalPending, fullyPaidCount, notFullyPaidCount };
+}
+
+function updateFinanceStats(){
+  const { totalPaid, totalPending, fullyPaidCount, notFullyPaidCount } = computeFinanceSummary();
+
+  const paidEl = document.getElementById('totalPaidAmount');
+  const pendingEl = document.getElementById('totalPendingAmount');
+  const fullyEl = document.getElementById('fullyPaidCount');
+  const notFullyEl = document.getElementById('notFullyPaidCount');
+
+  if(paidEl) paidEl.textContent = `${totalPaid.toLocaleString()} บาท`;
+  if(pendingEl) pendingEl.textContent = `${totalPending.toLocaleString()} บาท`;
+  if(fullyEl) fullyEl.textContent = fullyPaidCount;
+  if(notFullyEl) notFullyEl.textContent = notFullyPaidCount;
+}
+
+function exportExcel(){
+  if(typeof XLSX === 'undefined'){
+    alert('ไม่สามารถโหลดไลบรารีสำหรับส่งออก Excel ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต');
+    return;
+  }
+
+  const { rows, totalPaid, totalPending, fullyPaidCount, notFullyPaidCount } = computeFinanceSummary();
+
+  if(!rows.length){
+    alert('ยังไม่มีข้อมูลนักเรียนให้ส่งออก');
+    return;
+  }
+
+  const detailData = rows.map(r => ({
+    'เลขที่': r.student_number,
+    'ชื่อ-นามสกุล': r.student_name,
+    'ห้อง': r.class_name,
+    'ค่าเสื้อ': r.shirt_status,
+    'ค่าบำรุง': r.fee_status,
+    'ยอดที่จ่ายแล้ว (บาท)': r.paid_amount,
+    'ยอดค้างชำระ (บาท)': r.pending_amount,
+    'รายการที่ยังไม่จ่าย': r.outstanding_text,
+    'สถานะรวม': r.fully_paid ? 'จ่ายครบแล้ว' : 'ยังไม่จ่ายครบ'
+  }));
+
+  const summaryData = [
+    { 'รายการ': 'จำนวนนักเรียนทั้งหมด', 'ค่า': rows.length },
+    { 'รายการ': 'ยอดที่จ่ายแล้วทั้งหมด (บาท)', 'ค่า': totalPaid },
+    { 'รายการ': 'ยอดค้างชำระทั้งหมด (บาท)', 'ค่า': totalPending },
+    { 'รายการ': 'จำนวนคนที่จ่ายครบแล้ว', 'ค่า': fullyPaidCount },
+    { 'รายการ': 'จำนวนคนที่ยังไม่จ่ายครบ', 'ค่า': notFullyPaidCount }
+  ];
+
+  const unpaidData = rows
+    .filter(r => !r.fully_paid)
+    .map(r => ({
+      'เลขที่': r.student_number,
+      'ชื่อ-นามสกุล': r.student_name,
+      'ห้อง': r.class_name,
+      'รายการที่ยังไม่จ่าย': r.outstanding_text,
+      'ยอดค้างชำระ (บาท)': r.pending_amount
+    }));
+
+  const paidData = rows
+    .filter(r => r.fully_paid)
+    .map(r => ({
+      'เลขที่': r.student_number,
+      'ชื่อ-นามสกุล': r.student_name,
+      'ห้อง': r.class_name,
+      'ยอดที่จ่ายแล้ว (บาท)': r.paid_amount
+    }));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryData), 'สรุปยอด');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detailData), 'รายชื่อทั้งหมด');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(unpaidData), 'ยังไม่จ่ายครบ');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(paidData), 'จ่ายครบแล้ว');
+
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0,10);
+  XLSX.writeFile(wb, `สรุปค่ากีฬาสี_NP-404_${dateStr}.xlsx`);
+}
+
+function exportPDF(){
+  const { rows, totalPaid, totalPending, fullyPaidCount, notFullyPaidCount } = computeFinanceSummary();
+
+  if(!rows.length){
+    alert('ยังไม่มีข้อมูลนักเรียนให้ส่งออก');
+    return;
+  }
+
+  const today = new Date().toLocaleDateString('th-TH', { year:'numeric', month:'long', day:'numeric' });
+
+  const tableRows = rows.map(r => `
+    <tr>
+      <td>${escapeHtml(r.student_number)}</td>
+      <td>${escapeHtml(r.student_name)}</td>
+      <td>${escapeHtml(r.class_name)}</td>
+      <td class="${r.shirt_status === 'ชำระแล้ว' ? 'paid' : 'pending'}">${escapeHtml(r.shirt_status)}</td>
+      <td class="${r.fee_status === 'ชำระแล้ว' ? 'paid' : 'pending'}">${escapeHtml(r.fee_status)}</td>
+      <td style="text-align:right">${r.paid_amount.toLocaleString()}</td>
+      <td style="text-align:right">${r.pending_amount.toLocaleString()}</td>
+      <td>${escapeHtml(r.outstanding_text)}</td>
+    </tr>
+  `).join('');
+
+  const printHtml = `
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>สรุปค่ากีฬาสี NP-404</title>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{font-family:'Prompt',sans-serif;color:#172033;margin:24px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:#64748b;font-size:13px;margin:0 0 18px}
+  .summary{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px}
+  .summary div{border:1px solid #e2e8f0;border-radius:10px;padding:10px 14px;min-width:150px}
+  .summary .label{font-size:12px;color:#64748b}
+  .summary .value{font-size:18px;font-weight:700;margin-top:2px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{border:1px solid #e2e8f0;padding:6px 8px;text-align:left}
+  th{background:#f8fafc}
+  td.paid{color:#166534;font-weight:600}
+  td.pending{color:#991b1b;font-weight:600}
+  @media print{
+    body{margin:10mm}
+    button{display:none}
+  }
+</style>
+</head>
+<body>
+  <h1>สรุปค่ากีฬาสี NP-404</h1>
+  <p class="sub">พิมพ์เมื่อวันที่ ${today}</p>
+
+  <div class="summary">
+    <div><div class="label">จำนวนนักเรียนทั้งหมด</div><div class="value">${rows.length} คน</div></div>
+    <div><div class="label">ยอดที่จ่ายแล้ว</div><div class="value" style="color:#166534">${totalPaid.toLocaleString()} บาท</div></div>
+    <div><div class="label">ยอดค้างชำระ</div><div class="value" style="color:#991b1b">${totalPending.toLocaleString()} บาท</div></div>
+    <div><div class="label">จ่ายครบแล้ว</div><div class="value">${fullyPaidCount} คน</div></div>
+    <div><div class="label">ยังไม่จ่ายครบ</div><div class="value">${notFullyPaidCount} คน</div></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>เลขที่</th>
+        <th>ชื่อ-นามสกุล</th>
+        <th>ห้อง</th>
+        <th>ค่าเสื้อ</th>
+        <th>ค่าบำรุง</th>
+        <th>จ่ายแล้ว (บาท)</th>
+        <th>ค้างจ่าย (บาท)</th>
+        <th>รายการที่ยังไม่จ่าย</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${tableRows}
+    </tbody>
+  </table>
+
+  <script>
+    // Open the browser's print dialog automatically; the user can choose "Save as PDF".
+    window.onload = function(){ setTimeout(function(){ window.print(); }, 300); };
+  <\/script>
+</body>
+</html>`;
+
+  const printWindow = window.open('', '_blank');
+  if(!printWindow){
+    alert('เบราว์เซอร์บล็อกหน้าต่างป๊อปอัป กรุณาอนุญาตป๊อปอัปแล้วลองใหม่อีกครั้ง');
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(printHtml);
+  printWindow.document.close();
 }
 
 function renderAdminStudents(){
@@ -1821,6 +2061,7 @@ async function savePrices(){
       throw new Error('บันทึกแล้วแต่อ่านค่ากลับจากฐานข้อมูลไม่ตรงกัน ' + (settingsLastError || ''));
     }
     alert('บันทึกราคาสำเร็จ (ทุกเครื่องจะเห็นราคาใหม่)');
+    try{ updateFinanceStats(); }catch(e){ console.error(e); }
   }catch(err){
     console.error(err);
     alert('บันทึกราคาไม่สำเร็จ: ' + settingsErrorText(err));
