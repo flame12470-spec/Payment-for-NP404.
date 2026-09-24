@@ -266,6 +266,17 @@ th{background:#f8fafc;white-space:nowrap}
   gap:8px;
 }
 .hidden{display:none!important}
+.payment-methods{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+.payment-method{border:1px solid var(--border);border-radius:14px;padding:13px;background:#fff;display:flex;align-items:center;gap:9px;cursor:pointer}
+.payment-method.active{border-color:#93c5fd;background:#eff6ff}
+.payment-method input{width:auto}
+.qr-box{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px;border:1px solid #dbeafe;background:#f8fbff;border-radius:16px;margin:12px 0}
+.qr-box img{width:min(280px,100%);aspect-ratio:1;object-fit:contain;background:#fff;border-radius:12px;border:1px solid var(--border)}
+.account-number.masked{letter-spacing:3px}
+.deadline-box{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;margin-bottom:14px}
+.item-row{display:grid;grid-template-columns:1.3fr .7fr auto;gap:8px;align-items:end;margin-bottom:9px}
+@media(max-width:700px){.payment-methods{grid-template-columns:1fr}.item-row{grid-template-columns:1fr 1fr auto}}
+
 .notice{
   padding:12px 14px;
   border-radius:12px;
@@ -473,7 +484,10 @@ footer{
     </div>
 
     <div class="card">
-      <div class="bank-card">
+      <div id="paymentDeadlineBox" class="deadline-box hidden">
+  <span>⏰ กำหนดเวลาชำระ</span><b id="paymentDeadlineText">-</b>
+</div>
+<div class="bank-card">
         <div class="bank-head">
           <div id="bankLogoBox" class="bank-placeholder">🏦</div>
           <img id="bankLogoDisplay" class="bank-logo hidden" alt="โลโก้ธนาคาร">
@@ -491,14 +505,16 @@ footer{
         <div class="account-row">
           <div class="account-label">เลขบัญชี</div>
           <div class="account-number-row">
-            <div id="accountNumberDisplay" class="account-number">-</div>
+            <div id="accountNumberDisplay" class="account-number masked">••••••••••</div>
+            <button id="revealAccountBtn" class="copy-btn" onclick="toggleAccountNumber()">แสดงเลขบัญชี</button>
             <button id="copyAccountBtn" class="copy-btn" onclick="copyAccountNumber()">คัดลอก</button>
           </div>
         </div>
       </div>
 
       <div class="notice">
-        กรุณาเลือกชื่อของตัวเองให้ถูกต้อง เพราะระบบจะเชื่อมรายการชำระกับรหัสนักเรียนโดยตรง
+        เลือกวิธีชำระได้ทั้ง QR พร้อมเพย์ตามยอดที่ระบบกำหนด หรือใช้เลขบัญชีที่แสดงแบบซ่อนไว้
+        <br>กรุณาเลือกชื่อของตัวเองให้ถูกต้อง เพราะระบบจะเชื่อมรายการชำระกับรหัสนักเรียนโดยตรง
       </div>
 
       <div class="form-group">
@@ -519,6 +535,19 @@ footer{
       <div class="form-group">
         <label>จำนวนเงิน</label>
         <input id="payAmount" readonly placeholder="ระบบจะแสดงจำนวนเงินอัตโนมัติ">
+      </div>
+
+      <div class="form-group">
+        <label>วิธีชำระเงิน</label>
+        <div class="payment-methods">
+          <label class="payment-method active" id="methodQrLabel"><input type="radio" name="paymentMethod" value="qr" checked onchange="setPaymentMethod('qr')"> 📱 สแกน QR พร้อมเพย์</label>
+          <label class="payment-method" id="methodBankLabel"><input type="radio" name="paymentMethod" value="bank" onchange="setPaymentMethod('bank')"> 🏦 โอนด้วยเลขบัญชี</label>
+        </div>
+        <div id="promptPayQrBox" class="qr-box">
+          <strong>สแกนเพื่อจ่ายยอดที่กำหนด</strong>
+          <img id="promptPayQr" alt="QR พร้อมเพย์">
+          <span id="qrAmountText" class="meta">เลือกนักเรียนและรายการก่อน</span>
+        </div>
       </div>
 
       <div class="form-group">
@@ -601,6 +630,37 @@ footer{
         <span class="badge success">รวม: <b id="currentCombinedPrice">350 บาท</b></span>
       </div>
       <button class="btn primary" onclick="savePrices()">บันทึกราคา</button>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="section-title" style="margin-top:0">
+        <h2 style="font-size:19px">รายการชำระเงินเพิ่มเติม</h2>
+      </div>
+      <div class="notice">เพิ่ม แก้ไข หรือลบรายการและกำหนดราคาได้จากตรงนี้ รายการจะปรากฏในหน้าชำระเงินทุกเครื่อง</div>
+      <div id="paymentItemsAdmin"></div>
+      <button class="btn secondary" type="button" onclick="addPaymentItemRow()">+ เพิ่มรายการ</button>
+      <button class="btn primary" type="button" onclick="savePaymentItems()">บันทึกรายการและราคา</button>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="section-title" style="margin-top:0">
+        <h2 style="font-size:19px">กำหนดเวลารับชำระ</h2>
+      </div>
+      <div class="notice">เมื่อถึงเวลาที่กำหนด ระบบจะปิดการแจ้งชำระอัตโนมัติ และผู้ใช้จะส่งรายการใหม่ไม่ได้</div>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+        <div class="form-group">
+          <label>วันและเวลาปิดรับชำระ</label>
+          <input id="paymentDeadlineSetting" type="datetime-local">
+        </div>
+        <div class="form-group">
+          <label>หมายเลขพร้อมเพย์สำหรับสร้าง QR</label>
+          <input id="promptPaySetting" inputmode="tel" placeholder="เช่น 0614417784">
+        </div>
+      </div>
+      <div class="actions" style="margin-top:0">
+        <button class="btn primary" onclick="savePaymentSchedule()">บันทึกกำหนดเวลา</button>
+        <button class="btn gray" onclick="clearPaymentDeadline()">ยกเลิกกำหนดเวลา</button>
+      </div>
     </div>
 
     <div class="card" style="margin-top:16px">
@@ -809,7 +869,11 @@ function initSupabase(){
 initSupabase();
 
 const NO_PERMISSION_MSG = 'ไม่มีสิทธิ์แก้ไขข้อมูล หรือเซสชันหมดอายุ — กรุณาเข้าสู่ระบบผู้ดูแลใหม่';
-const PROMPTPAY = '0614417784';
+let PROMPTPAY = cacheGet('np404_promptpay', '0614417784');
+let PAYMENT_DEADLINE = cacheGet('np404_payment_deadline', '');
+let PAYMENT_ITEMS = [];
+let ACCOUNT_REVEALED = false;
+let paymentCountdownTimer = null;
 
 // ---- Settings (ราคา + บัญชีธนาคาร) ----
 // แหล่งข้อมูลจริงคือตาราง Supabase "sports_settings"
@@ -842,6 +906,7 @@ let TRANSFER_ENABLED = cacheGet('np404_transfer_enabled', 'true') !== 'false';
 let settingsLastError = '';
 let settingsLastLoadedAt = 0;
 let optionsBuiltWithPrices = '';
+let optionsBuiltWithItems = '';
 
 let students = [];
 let allStudents = [];
@@ -903,6 +968,18 @@ function applySettings(map){
   if('account_name' in map) ACCOUNT_NAME = map.account_name || '';
   if('account_number' in map) ACCOUNT_NUMBER = map.account_number || '';
   if('transfer_enabled' in map) TRANSFER_ENABLED = String(map.transfer_enabled) !== 'false';
+  if('promptpay' in map) PROMPTPAY = String(map.promptpay || '').trim();
+  if('payment_deadline' in map) PAYMENT_DEADLINE = String(map.payment_deadline || '');
+  if('payment_items' in map){
+    try{ PAYMENT_ITEMS = Array.isArray(map.payment_items) ? map.payment_items : JSON.parse(map.payment_items || '[]'); }catch(e){ PAYMENT_ITEMS = []; }
+  }
+  if(!Array.isArray(PAYMENT_ITEMS) || !PAYMENT_ITEMS.length){
+    PAYMENT_ITEMS = [
+      {id:'shirt',name:'ค่าเสื้อ',price:SHIRT_PRICE,legacy:'shirt'},
+      {id:'fee',name:'ค่าบำรุง',price:FEE_PRICE,legacy:'fee'}
+    ];
+  }
+  PAYMENT_ITEMS = PAYMENT_ITEMS.map((x,i)=>({id:String(x.id||('item_'+i)),name:String(x.name||'รายการ '+(i+1)),price:numOr(x.price,0),legacy:x.legacy||''}));
 
   cacheSet('np404_shirt_price', SHIRT_PRICE);
   cacheSet('np404_fee_price', FEE_PRICE);
@@ -911,10 +988,15 @@ function applySettings(map){
   cacheSet('np404_account_name', ACCOUNT_NAME);
   cacheSet('np404_account_number', ACCOUNT_NUMBER);
   cacheSet('np404_transfer_enabled', TRANSFER_ENABLED);
+  cacheSet('np404_promptpay', PROMPTPAY);
+  cacheSet('np404_payment_deadline', PAYMENT_DEADLINE);
+  cacheSet('np404_payment_items', JSON.stringify(PAYMENT_ITEMS));
 
   try{ updatePriceDisplay(); }catch(e){ console.error(e); }
   try{ updateBankDisplay(); }catch(e){ console.error(e); }
   try{ updateTransferStatusUI(); }catch(e){ console.error(e); }
+  try{ renderPaymentItemsAdmin(); }catch(e){ console.error(e); }
+  try{ updatePaymentDeadlineUI(); }catch(e){ console.error(e); }
 }
 
 async function saveSettingsToDb(values){
@@ -964,6 +1046,7 @@ function showPage(page){
       if(page === 'requests') renderRequests();
       if(page === 'admin'){
         updatePriceDisplay();
+        renderPaymentItemsAdmin();
         updateBankDisplay();
         updateTransferStatusUI();
         renderAdminStudents();
@@ -1324,37 +1407,49 @@ function selectPaymentStudent(id){
 function buildPaymentOptions(student){
   const select = document.getElementById('payType');
   const amount = document.getElementById('payAmount');
+  if(!select || !amount) return;
 
   const shirtPaid = normalizePaid(student.shirt_status);
   const feePaid = normalizePaid(student.fee_status);
+  const items = PAYMENT_ITEMS.length ? PAYMENT_ITEMS : [
+    {id:'shirt',name:'ค่าเสื้อ',price:SHIRT_PRICE,legacy:'shirt'},
+    {id:'fee',name:'ค่าบำรุง',price:FEE_PRICE,legacy:'fee'}
+  ];
 
-  const options = [];
   optionsBuiltWithPrices = SHIRT_PRICE + '|' + FEE_PRICE;
+  optionsBuiltWithItems = JSON.stringify(items);
 
-  if(!shirtPaid) options.push({value:'ค่าเสื้อ', label:`ค่าเสื้อ — ${SHIRT_PRICE} บาท`, amount:SHIRT_PRICE});
-  if(!feePaid) options.push({value:'ค่าบำรุง', label:`ค่าบำรุง — ${FEE_PRICE} บาท`, amount:FEE_PRICE});
-
-  if(!shirtPaid && !feePaid){
-    options.push({value:'ค่าเสื้อ+ค่าบำรุง', label:`ค่าเสื้อ + ค่าบำรุง — ${SHIRT_PRICE + FEE_PRICE} บาท`, amount:SHIRT_PRICE + FEE_PRICE});
-  }
+  const options = items.filter(item => {
+    if(item.legacy === 'shirt') return !shirtPaid;
+    if(item.legacy === 'fee') return !feePaid;
+    return true;
+  }).map(item => ({
+    value:item.id,
+    label:`${item.name} — ${Number(item.price).toLocaleString()} บาท`,
+    amount:Number(item.price),
+    name:item.name
+  })).filter(x => x.amount >= 0);
 
   if(!options.length){
     select.innerHTML = '<option value="">ชำระครบแล้ว</option>';
     amount.value = '';
+    updatePromptPayQr(0);
     return;
   }
 
   select.innerHTML = '<option value="">-- เลือกรายการ --</option>' +
-    options.map(o => `<option value="${escapeAttr(o.value)}" data-amount="${o.amount}">${escapeHtml(o.label)}</option>`).join('');
+    options.map(o => `<option value="${escapeAttr(o.value)}" data-amount="${o.amount}" data-name="${escapeAttr(o.name)}">${escapeHtml(o.label)}</option>`).join('');
 
   amount.value = '';
+  updatePromptPayQr(0);
 
   select.onchange = () => {
     const selected = select.options[select.selectedIndex];
-    amount.value = selected?.dataset?.amount ? `${selected.dataset.amount} บาท` : '';
+    const n = selected?.dataset?.amount ? Number(selected.dataset.amount) : 0;
+    amount.value = n ? `${n.toLocaleString()} บาท` : '';
+    updatePromptPayQr(n);
   };
 }
-
 function resetPaymentForm(){
   selectedPaymentStudent = null;
   document.getElementById('studentSearch').value = '';
@@ -1365,14 +1460,18 @@ function resetPaymentForm(){
   document.getElementById('payAmount').value = '';
   document.getElementById('paySlip').value = '';
   document.getElementById('paymentMessage').innerHTML = '';
+  const qr = document.querySelector('input[name="paymentMethod"][value="qr"]');
+  if(qr) qr.checked = true;
+  setPaymentMethod('qr');
+  updatePromptPayQr(0);
 }
 
 async function submitSelfPayment(){
   const message = document.getElementById('paymentMessage');
   message.innerHTML = '';
 
-  if(!TRANSFER_ENABLED){
-    message.innerHTML = '<div class="error">ขณะนี้ปิดรับการแจ้งโอนเงินชั่วคราว กรุณาติดต่อผู้ดูแลระบบ</div>';
+  if(!TRANSFER_ENABLED || isPaymentClosed()){
+    message.innerHTML = '<div class="error">ขณะนี้ปิดรับชำระเงินแล้ว หรือพ้นกำหนดเวลาชำระ</div>';
     return;
   }
 
@@ -1383,6 +1482,7 @@ async function submitSelfPayment(){
 
   const type = document.getElementById('payType').value;
   const file = document.getElementById('paySlip').files[0];
+  const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value || 'qr';
 
   if(!type){
     message.innerHTML = '<div class="error">กรุณาเลือกรายการที่ต้องการชำระ</div>';
@@ -1396,20 +1496,16 @@ async function submitSelfPayment(){
 
   // ดึงราคาล่าสุดจากฐานข้อมูลอีกครั้งก่อนส่ง เพื่อไม่ให้ยอดเงินเป็นราคาเก่า
   const reloaded = await loadSettings();
-  if(reloaded && optionsBuiltWithPrices !== (SHIRT_PRICE + '|' + FEE_PRICE)){
+  if(reloaded && (optionsBuiltWithPrices !== (SHIRT_PRICE + '|' + FEE_PRICE) || optionsBuiltWithItems !== JSON.stringify(PAYMENT_ITEMS))){
     buildPaymentOptions(selectedPaymentStudent);
     message.innerHTML = '<div class="notice">ผู้ดูแลเพิ่งปรับราคา กรุณาเลือกรายการชำระเงินอีกครั้งเพื่อใช้ยอดล่าสุด</div>';
     return;
   }
 
-  const amountMap = {
-    'ค่าเสื้อ': SHIRT_PRICE,
-    'ค่าบำรุง': FEE_PRICE,
-    'ค่าเสื้อ+ค่าบำรุง': SHIRT_PRICE + FEE_PRICE
-  };
-
-  const amount = amountMap[type];
-  if(!amount){
+  const selectedItem = PAYMENT_ITEMS.find(x => String(x.id) === String(type));
+  const amount = selectedItem ? Number(selectedItem.price) : 0;
+  const paymentTypeName = selectedItem ? selectedItem.name : '';
+  if(!selectedItem || amount < 0){
     message.innerHTML = '<div class="error">รายการชำระเงินไม่ถูกต้อง</div>';
     return;
   }
@@ -2076,7 +2172,12 @@ async function savePrices(){
   }
 
   try{
-    await saveSettingsToDb({ shirt_price: shirt, fee_price: fee });
+    const nextItems = (PAYMENT_ITEMS.length ? PAYMENT_ITEMS : []).map(item => {
+      if(item.legacy === 'shirt') return {...item,price:shirt};
+      if(item.legacy === 'fee') return {...item,price:fee};
+      return item;
+    });
+    await saveSettingsToDb({ shirt_price: shirt, fee_price: fee, payment_items: JSON.stringify(nextItems) });
 
     // อ่านกลับจากฐานข้อมูลเพื่อยืนยันว่าบันทึกเข้าจริง
     const ok = await loadSettings();
@@ -2139,7 +2240,12 @@ function updateBankDisplay(){
 
   if(bank) bank.textContent = BANK_NAME || 'ธนาคาร';
   if(account) account.textContent = ACCOUNT_NAME || '-';
-  if(number) number.textContent = formatAccountNumber(ACCOUNT_NUMBER) || '-';
+  if(number){
+    number.textContent = maskedAccountNumber(ACCOUNT_NUMBER);
+    number.classList.toggle('masked', !ACCOUNT_REVEALED);
+  }
+  const revealBtn = document.getElementById('revealAccountBtn');
+  if(revealBtn) revealBtn.textContent = ACCOUNT_REVEALED ? 'ซ่อนเลขบัญชี' : 'แสดงเลขบัญชี';
 
   const logoBox = document.getElementById('bankLogoBox');
 
@@ -2164,6 +2270,10 @@ function updateBankDisplay(){
   if(bankLogoInput && document.activeElement !== bankLogoInput) bankLogoInput.value = BANK_LOGO;
   if(accountNameInput && document.activeElement !== accountNameInput) accountNameInput.value = ACCOUNT_NAME;
   if(accountNumberInput && document.activeElement !== accountNumberInput) accountNumberInput.value = ACCOUNT_NUMBER;
+  const pp = document.getElementById('promptPaySetting');
+  const dl = document.getElementById('paymentDeadlineSetting');
+  if(pp && document.activeElement !== pp) pp.value = PROMPTPAY;
+  if(dl && document.activeElement !== dl) dl.value = toDatetimeLocal(PAYMENT_DEADLINE);
 }
 
 async function toggleTransferStatus(){
@@ -2202,36 +2312,200 @@ function updateTransferStatusUI(){
   }
 
   const notice = document.getElementById('transferClosedNotice');
-  if(notice) notice.classList.toggle('hidden', TRANSFER_ENABLED);
+  if(notice) notice.classList.toggle('hidden', TRANSFER_ENABLED && !isPaymentClosed());
 
   const submitBtn = document.getElementById('submitPaymentBtn');
-  if(submitBtn) submitBtn.disabled = !TRANSFER_ENABLED;
+  if(submitBtn) submitBtn.disabled = !TRANSFER_ENABLED || isPaymentClosed();
 
   document.querySelectorAll('#page-selfPayment input, #page-selfPayment select').forEach(el => {
-    el.disabled = !TRANSFER_ENABLED;
+    if(el.id === 'paySlip' || el.id === 'studentSearch' || el.id === 'payType') el.disabled = !TRANSFER_ENABLED || isPaymentClosed();
   });
+  updatePaymentDeadlineUI();
 }
 
 function formatAccountNumber(value){
   return String(value || '').replace(/\s+/g,'');
 }
 
-async function copyAccountNumber(){
-  if(!ACCOUNT_NUMBER){
-    alert('ยังไม่ได้กำหนดเลขบัญชี');
+function maskedAccountNumber(value){
+  const raw = formatAccountNumber(value);
+  if(!raw) return '-';
+  if(ACCOUNT_REVEALED) return raw;
+  return '•'.repeat(Math.min(Math.max(raw.length,8),18));
+}
+
+function toggleAccountNumber(){
+  ACCOUNT_REVEALED = !ACCOUNT_REVEALED;
+  updateBankDisplay();
+}
+
+function setPaymentMethod(method){
+  const qrBox = document.getElementById('promptPayQrBox');
+  const qrLabel = document.getElementById('methodQrLabel');
+  const bankLabel = document.getElementById('methodBankLabel');
+  const isQr = method === 'qr';
+  if(qrBox) qrBox.classList.toggle('hidden', !isQr);
+  if(qrLabel) qrLabel.classList.toggle('active', isQr);
+  if(bankLabel) bankLabel.classList.toggle('active', !isQr);
+}
+
+function promptPayPayload(target, amount){
+  let mobile = String(target || '').replace(/\D/g,'');
+  if(mobile.startsWith('66')) mobile = '00' + mobile;
+  else if(mobile.startsWith('0')) mobile = '0066' + mobile.slice(1);
+  else mobile = '0066' + mobile;
+  mobile = mobile.padStart(13,'0').slice(-13);
+
+  const merchant = '0016A000000677010111' + '0113' + mobile;
+  const amt = Number(amount) > 0 ? Number(amount).toFixed(2) : '';
+  let payload = '000201010212' + '29' + String(merchant.length).padStart(2,'0') + merchant +
+    '5802TH5303764';
+  if(amt) payload += '54' + String(amt.length).padStart(2,'0') + amt;
+  payload += '6304';
+  return payload + crc16(payload);
+}
+
+function crc16(str){
+  let crc = 0xFFFF;
+  for(let i=0;i<str.length;i++){
+    crc ^= str.charCodeAt(i) << 8;
+    for(let j=0;j<8;j++) crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
+  }
+  return crc.toString(16).toUpperCase().padStart(4,'0');
+}
+
+function updatePromptPayQr(amount){
+  const img = document.getElementById('promptPayQr');
+  const text = document.getElementById('qrAmountText');
+  if(!img || !text) return;
+  const n = Number(amount || 0);
+  if(!PROMPTPAY || !n){
+    img.removeAttribute('src');
+    text.textContent = 'เลือกนักเรียนและรายการก่อน';
     return;
   }
+  const payload = promptPayPayload(PROMPTPAY, n);
+  img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=' + encodeURIComponent(payload);
+  text.textContent = `พร้อมเพย์ ${PROMPTPAY} • ยอด ${n.toLocaleString()} บาท`;
+}
 
-  try{
-    await navigator.clipboard.writeText(formatAccountNumber(ACCOUNT_NUMBER));
-    const btn = document.getElementById('copyAccountBtn');
-    if(btn){
-      const old = btn.textContent;
-      btn.textContent = '✓ คัดลอกแล้ว';
-      setTimeout(() => btn.textContent = old, 1500);
+function isPaymentClosed(){
+  if(!PAYMENT_DEADLINE) return false;
+  const t = new Date(PAYMENT_DEADLINE).getTime();
+  return Number.isFinite(t) && Date.now() >= t;
+}
+
+function updatePaymentDeadlineUI(){
+  const box = document.getElementById('paymentDeadlineBox');
+  const out = document.getElementById('paymentDeadlineText');
+  if(!box || !out) return;
+  if(!PAYMENT_DEADLINE){
+    box.classList.add('hidden');
+    if(paymentCountdownTimer) clearInterval(paymentCountdownTimer);
+    return;
+  }
+  box.classList.remove('hidden');
+  const tick = () => {
+    const t = new Date(PAYMENT_DEADLINE).getTime();
+    const diff = t - Date.now();
+    if(!Number.isFinite(t)){
+      out.textContent = 'กำหนดเวลาไม่ถูกต้อง';
+      return;
     }
+    if(diff <= 0){
+      out.textContent = 'ปิดรับชำระแล้ว';
+      updateTransferStatusUI();
+      return;
+    }
+    const sec = Math.floor(diff/1000);
+    const d = Math.floor(sec/86400);
+    const h = Math.floor((sec%86400)/3600);
+    const m = Math.floor((sec%3600)/60);
+    const s = sec%60;
+    out.textContent = d ? `${d} วัน ${h} ชม. ${m} น.` : `${h} ชม. ${m} น. ${s} วิ.`;
+  };
+  tick();
+  if(paymentCountdownTimer) clearInterval(paymentCountdownTimer);
+  paymentCountdownTimer = setInterval(tick,1000);
+}
+
+function toDatetimeLocal(value){
+  if(!value) return '';
+  const d = new Date(value);
+  if(Number.isNaN(d.getTime())) return '';
+  const pad=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function renderPaymentItemsAdmin(){
+  const box = document.getElementById('paymentItemsAdmin');
+  if(!box) return;
+  if(!PAYMENT_ITEMS.length){
+    box.innerHTML = '<div class="empty">ยังไม่มีรายการ</div>';
+    return;
+  }
+  box.innerHTML = PAYMENT_ITEMS.map((item,i)=>`
+    <div class="item-row" data-index="${i}">
+      <div class="form-group" style="margin:0"><label>ชื่อรายการ</label><input data-item-name value="${escapeAttr(item.name)}"></div>
+      <div class="form-group" style="margin:0"><label>ราคา</label><input data-item-price type="number" min="0" step="1" value="${Number(item.price)}"></div>
+      <button class="btn danger small" type="button" onclick="removePaymentItem(${i})">ลบ</button>
+    </div>
+  `).join('');
+}
+
+function addPaymentItemRow(){
+  PAYMENT_ITEMS.push({id:'item_'+Date.now(),name:'รายการใหม่',price:0,legacy:''});
+  renderPaymentItemsAdmin();
+}
+
+function removePaymentItem(index){
+  if(PAYMENT_ITEMS.length <= 1){
+    alert('ต้องมีอย่างน้อย 1 รายการ');
+    return;
+  }
+  if(!confirm(`ลบรายการ "${PAYMENT_ITEMS[index]?.name || ''}" ใช่หรือไม่?`)) return;
+  PAYMENT_ITEMS.splice(index,1);
+  renderPaymentItemsAdmin();
+}
+
+async function savePaymentItems(){
+  const rows = [...document.querySelectorAll('#paymentItemsAdmin .item-row')];
+  const next = rows.map((row,i)=>({
+    id:PAYMENT_ITEMS[i]?.id || ('item_'+Date.now()+'_'+i),
+    name:row.querySelector('[data-item-name]')?.value.trim() || `รายการ ${i+1}`,
+    price:numOr(row.querySelector('[data-item-price]')?.value,0),
+    legacy:PAYMENT_ITEMS[i]?.legacy || ''
+  }));
+  try{
+    await saveSettingsToDb({payment_items:JSON.stringify(next)});
+    await loadSettings();
+    alert('บันทึกรายการและราคาเรียบร้อยแล้ว');
   }catch(err){
-    alert('คัดลอกเลขบัญชีเรียบร้อยแล้ว');
+    alert('บันทึกรายการไม่สำเร็จ: ' + settingsErrorText(err));
+  }
+}
+
+async function savePaymentSchedule(){
+  const deadlineInput = document.getElementById('paymentDeadlineSetting');
+  const promptInput = document.getElementById('promptPaySetting');
+  const deadline = deadlineInput?.value ? new Date(deadlineInput.value).toISOString() : '';
+  const promptpay = promptInput?.value.trim().replace(/\D/g,'') || '';
+  try{
+    await saveSettingsToDb({payment_deadline:deadline,promptpay});
+    await loadSettings();
+    alert('บันทึกกำหนดเวลาชำระและพร้อมเพย์เรียบร้อยแล้ว');
+  }catch(err){
+    alert('บันทึกไม่สำเร็จ: ' + settingsErrorText(err));
+  }
+}
+
+async function clearPaymentDeadline(){
+  try{
+    await saveSettingsToDb({payment_deadline:''});
+    await loadSettings();
+    alert('ยกเลิกกำหนดเวลาปิดรับชำระแล้ว');
+  }catch(err){
+    alert('ยกเลิกไม่สำเร็จ: ' + settingsErrorText(err));
   }
 }
 
