@@ -505,8 +505,7 @@ footer{
         <div class="account-row">
           <div class="account-label">เลขบัญชี</div>
           <div class="account-number-row">
-            <div id="accountNumberDisplay" class="account-number masked">••••••••••</div>
-            <button id="revealAccountBtn" class="copy-btn" onclick="toggleAccountNumber()">แสดงเลขบัญชี</button>
+            <div id="accountNumberDisplay" class="account-number">-</div>
             <button id="copyAccountBtn" class="copy-btn" onclick="copyAccountNumber()">คัดลอก</button>
           </div>
         </div>
@@ -2240,12 +2239,17 @@ function updateBankDisplay(){
 
   if(bank) bank.textContent = BANK_NAME || 'ธนาคาร';
   if(account) account.textContent = ACCOUNT_NAME || '-';
+  const paymentClosed = !TRANSFER_ENABLED || isPaymentClosed();
+  ACCOUNT_REVEALED = !paymentClosed;
   if(number){
-    number.textContent = maskedAccountNumber(ACCOUNT_NUMBER);
-    number.classList.toggle('masked', !ACCOUNT_REVEALED);
+    number.textContent = paymentClosed ? maskedAccountNumber(ACCOUNT_NUMBER) : formatAccountNumber(ACCOUNT_NUMBER);
+    number.classList.toggle('masked', paymentClosed);
   }
-  const revealBtn = document.getElementById('revealAccountBtn');
-  if(revealBtn) revealBtn.textContent = ACCOUNT_REVEALED ? 'ซ่อนเลขบัญชี' : 'แสดงเลขบัญชี';
+  const copyBtn = document.getElementById('copyAccountBtn');
+  if(copyBtn){
+    copyBtn.disabled = paymentClosed || !formatAccountNumber(ACCOUNT_NUMBER);
+    copyBtn.textContent = paymentClosed ? 'คัดลอกไม่ได้ (ปิดรับชำระ)' : 'คัดลอก';
+  }
 
   const logoBox = document.getElementById('bankLogoBox');
 
@@ -2321,6 +2325,7 @@ function updateTransferStatusUI(){
     if(el.id === 'paySlip' || el.id === 'studentSearch' || el.id === 'payType') el.disabled = !TRANSFER_ENABLED || isPaymentClosed();
   });
   updatePaymentDeadlineUI();
+  updateBankDisplay();
 }
 
 function formatAccountNumber(value){
@@ -2334,9 +2339,25 @@ function maskedAccountNumber(value){
   return '•'.repeat(Math.min(Math.max(raw.length,8),18));
 }
 
-function toggleAccountNumber(){
-  ACCOUNT_REVEALED = !ACCOUNT_REVEALED;
-  updateBankDisplay();
+async function copyAccountNumber(){
+  if(!TRANSFER_ENABLED || isPaymentClosed()){
+    alert('ขณะนี้ปิดรับชำระเงิน จึงไม่สามารถคัดลอกเลขบัญชีได้');
+    return;
+  }
+  const value = formatAccountNumber(ACCOUNT_NUMBER);
+  if(!value) return;
+  try{
+    await navigator.clipboard.writeText(value);
+    alert('คัดลอกเลขบัญชีเรียบร้อยแล้ว');
+  }catch(err){
+    const ta = document.createElement('textarea');
+    ta.value = value;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    alert('คัดลอกเลขบัญชีเรียบร้อยแล้ว');
+  }
 }
 
 function setPaymentMethod(method){
