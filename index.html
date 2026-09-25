@@ -77,18 +77,19 @@ body > .page, body > .modal, body > .print-area {display:none!important}
 body {margin:0;min-height:100svh;background:#6593c7;color:white;font-family:Kanit,sans-serif}
 .holiday-screen {min-height:100svh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 20% 15%,#a3c3e7 0,transparent 38%),linear-gradient(145deg,#6593c7,#4776ad)}
 .holiday-card {width:min(100%,490px);padding:40px 28px;text-align:center;border-radius:28px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);box-shadow:0 22px 65px rgba(27,60,104,.18);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
-.holiday-logo {width:76px;height:76px;object-fit:contain;padding:10px;background:rgba(255,255,255,.19);border-radius:23px;margin-bottom:17px}
+.holiday-logo {width:90px;height:90px;object-fit:contain;padding:0;background:none;border:0;border-radius:0;box-shadow:none;margin-bottom:20px}
 .holiday-tag {display:inline-block;background:rgba(255,255,255,.22);padding:7px 17px;border-radius:99px;font-size:13px}
 .holiday-card h1 {font-size:clamp(25px,5vw,33px);line-height:1.4;margin:19px 0 13px;font-weight:700}
 .holiday-card p {font-size:15px;line-height:1.9;opacity:.95}
 .holiday-notice {margin-top:25px;padding:19px;border-radius:18px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.23)}
+.holiday-notice svg {display:block;margin:0 auto 8px;opacity:.92}
 .holiday-notice strong {display:block;font-size:20px;margin:6px 0}
 .holiday-footer {margin-top:27px;font-size:12px;opacity:.7}
 /* Responsive: iPad portrait/landscape and desktop */
 @media (min-width: 700px) {
   .holiday-screen {padding:clamp(36px,5vw,90px);min-height:100dvh}
   .holiday-card {width:min(100%,760px);padding:clamp(48px,6vw,78px) clamp(46px,6vw,88px);border-radius:36px}
-  .holiday-logo {width:108px;height:108px;padding:14px;border-radius:28px;margin-bottom:26px}
+  .holiday-logo {width:125px;height:125px;padding:0;border-radius:0;margin-bottom:26px}
   .holiday-tag {font-size:17px;padding:10px 24px}
   .holiday-card h1 {font-size:clamp(38px,4vw,52px);margin:28px 0 20px}
   .holiday-card p {font-size:clamp(19px,1.8vw,23px);line-height:1.85}
@@ -98,7 +99,7 @@ body {margin:0;min-height:100svh;background:#6593c7;color:white;font-family:Kani
 }
 @media (min-width: 1200px) {
   .holiday-card {width:min(100%,920px);padding:78px 100px}
-  .holiday-logo {width:120px;height:120px}
+  .holiday-logo {width:145px;height:145px}
   .holiday-card h1 {font-size:56px}
   .holiday-card p {font-size:23px}
   .holiday-notice {padding:34px}
@@ -116,11 +117,11 @@ body {margin:0;min-height:100svh;background:#6593c7;color:white;font-family:Kani
 <main class="holiday-screen" aria-labelledby="holiday-title">
   <section class="holiday-card">
     <img class="holiday-logo" src="https://i.postimg.cc/HJ75HTMD/Untitled-design.png" alt="โลโก้เว็บไซต์">
-    <br><span class="holiday-tag">🔒 ปิดให้บริการชั่วคราว</span>
-    <h1 id="holiday-title">🎓 ปิดเว็บไซต์ช่วงปิดเทอม</h1>
+    <br><span class="holiday-tag">ปิดให้บริการชั่วคราว</span>
+    <h1 id="holiday-title">ปิดเว็บไซต์ช่วงปิดเทอม</h1>
     <p>ระบบการจ่ายเงินปิดให้บริการชั่วคราว<br>เนื่องจากสิ้นสุดภาคเรียน<br>ขอขอบคุณทุกคนที่ใช้บริการ</p>
     <div class="holiday-notice">
-      <div style="font-size:32px" aria-hidden="true">📅</div>
+      <svg aria-hidden="true" width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M8 15h3"/></svg>
       <strong>พบกันใหม่ภาคเรียนหน้า</strong>
       <p>ระบบจะกลับมาเปิดให้บริการอีกครั้ง<br>เมื่อเริ่มภาคเรียนถัดไป</p>
     </div>
